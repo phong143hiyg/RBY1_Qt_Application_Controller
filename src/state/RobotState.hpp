@@ -29,6 +29,13 @@ public:
         return false;
     }
 
+    // Only states in which the robot is stationary may change its
+    // power/servo/stream configuration.
+    [[nodiscard]] virtual bool canChangeSystemConfiguration() const
+    {
+        return false;
+    }
+
     [[nodiscard]] virtual bool isBusy() const
     {
         return false;

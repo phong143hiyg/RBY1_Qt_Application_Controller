@@ -90,6 +90,7 @@ signals:
         bool connected,
         bool canDrive,
         bool canControlJoints,
+        bool canChangeSystemConfiguration,
         bool busy);
 
     void responseReceived(
@@ -125,10 +126,13 @@ private:
 
     RobotClient *client_{nullptr};
     QTimer velocityTimer_;
+    QTimer statusTimer_;
 
     std::unique_ptr<RobotState> state_;
 
     double linearX_{0.0};
     double linearY_{0.0};
     double angularZ_{0.0};
+
+    bool statusRequestPending_{false};
 };

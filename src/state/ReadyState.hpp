@@ -20,6 +20,11 @@ public:
         return true;
     }
 
+    [[nodiscard]] bool canChangeSystemConfiguration() const override
+    {
+        return true;
+    }
+
     std::unique_ptr<RobotState> prepare(
         RobotController &controller) override;
 

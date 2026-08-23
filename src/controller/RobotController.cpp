@@ -15,12 +15,19 @@ RobotController::RobotController(QObject *parent)
       state_(std::make_unique<DisconnectedState>())
 {
     velocityTimer_.setInterval(100);
+    statusTimer_.setInterval(500);
 
     connect(
         &velocityTimer_,
         &QTimer::timeout,
         this,
         &RobotController::sendVelocityTick);
+
+    connect(
+        &statusTimer_,
+        &QTimer::timeout,
+        this,
+        &RobotController::requestStatus);
 
     connect(
         client_,
@@ -83,9 +90,15 @@ void RobotController::ping()
 
 void RobotController::requestStatus()
 {
-    sendSimpleInternal(
-        QStringLiteral("status"),
-        QStringLiteral("Đọc trạng thái"));
+    if (statusRequestPending_)
+    {
+        return;
+    }
+
+    statusRequestPending_ =
+        sendSimpleInternal(
+            QStringLiteral("status"),
+            QStringLiteral("Đọc trạng thái"));
 }
 
 void RobotController::prepareRobot()
@@ -96,7 +109,8 @@ void RobotController::prepareRobot()
 
 void RobotController::setPower(bool enabled)
 {
-    if (!state_->isConnected() || state_->isBusy())
+    if (!state_->isConnected()
+        || !state_->canChangeSystemConfiguration())
     {
         rejectAction(
             QStringLiteral(
@@ -115,7 +129,8 @@ void RobotController::setPower(bool enabled)
 
 void RobotController::setServo(bool enabled)
 {
-    if (!state_->isConnected() || state_->isBusy())
+    if (!state_->isConnected()
+        || !state_->canChangeSystemConfiguration())
     {
         rejectAction(
             QStringLiteral(
@@ -134,7 +149,8 @@ void RobotController::setServo(bool enabled)
 
 void RobotController::setStream(bool enabled)
 {
-    if (!state_->isConnected() || state_->isBusy())
+    if (!state_->isConnected()
+        || !state_->canChangeSystemConfiguration())
     {
         rejectAction(
             QStringLiteral(
@@ -402,6 +418,9 @@ void RobotController::handleBridgeConnected()
     transitionTo(
         std::make_unique<ConnectedState>());
 
+    requestStatus();
+    statusTimer_.start();
+
     emit logMessage(
         QStringLiteral(
             "Đã kết nối C++ ROS 2 bridge."));
@@ -410,6 +429,8 @@ void RobotController::handleBridgeConnected()
 void RobotController::handleBridgeDisconnected()
 {
     velocityTimer_.stop();
+    statusTimer_.stop();
+    statusRequestPending_ = false;
 
     transitionTo(
         std::make_unique<DisconnectedState>());
@@ -423,6 +444,11 @@ void RobotController::handleResponse(
     const QString &operationName,
     const QJsonObject &response)
 {
+    if (operationName == QStringLiteral("Đọc trạng thái"))
+    {
+        statusRequestPending_ = false;
+    }
+
     emit responseReceived(
         operationName,
         response);
@@ -472,7 +498,11 @@ void RobotController::handleResponse(
 
         if (success)
         {
-            requestStatus();
+            // Turning a subsystem back on invalidates the ready state in the
+            // bridge.  A status query can only report that fact; it cannot
+            // restore the control session.  Re-run prepare so this path is
+            // deterministic: Connected -> Preparing -> Ready.
+            prepareRobot();
         }
     }
 }
@@ -518,6 +548,7 @@ void RobotController::emitCurrentState()
         state_->isConnected(),
         state_->canDrive(),
         state_->canControlJoints(),
+        state_->canChangeSystemConfiguration(),
         state_->isBusy());
 }
 

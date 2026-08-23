@@ -45,6 +45,7 @@ template <> constexpr inline auto RobotController::qt_create_metaobjectdata<qt_m
         "connected",
         "canDrive",
         "canControlJoints",
+        "canChangeSystemConfiguration",
         "busy",
         "responseReceived",
         "operationName",
@@ -61,31 +62,31 @@ template <> constexpr inline auto RobotController::qt_create_metaobjectdata<qt_m
 
     QtMocHelpers::UintData qt_methods {
         // Signal 'stateChanged'
-        QtMocHelpers::SignalData<void(const QString &, bool, bool, bool, bool)>(1, 2, QMC::AccessPublic, QMetaType::Void, {{
+        QtMocHelpers::SignalData<void(const QString &, bool, bool, bool, bool, bool)>(1, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::QString, 3 }, { QMetaType::Bool, 4 }, { QMetaType::Bool, 5 }, { QMetaType::Bool, 6 },
-            { QMetaType::Bool, 7 },
+            { QMetaType::Bool, 7 }, { QMetaType::Bool, 8 },
         }}),
         // Signal 'responseReceived'
-        QtMocHelpers::SignalData<void(const QString &, const QJsonObject &)>(8, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 9 }, { 0x80000000 | 10, 11 },
+        QtMocHelpers::SignalData<void(const QString &, const QJsonObject &)>(9, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 10 }, { 0x80000000 | 11, 12 },
         }}),
         // Signal 'logMessage'
-        QtMocHelpers::SignalData<void(const QString &)>(12, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 13 },
+        QtMocHelpers::SignalData<void(const QString &)>(13, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 14 },
         }}),
         // Signal 'jointStatusReceived'
-        QtMocHelpers::SignalData<void(const QJsonObject &)>(14, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 10, 11 },
+        QtMocHelpers::SignalData<void(const QJsonObject &)>(15, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 11, 12 },
         }}),
         // Slot 'sendVelocityTick'
-        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'handleBridgeConnected'
         QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'handleBridgeDisconnected'
+        // Slot 'handleBridgeConnected'
         QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'handleBridgeDisconnected'
+        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'handleResponse'
-        QtMocHelpers::SlotData<void(const QString &, const QJsonObject &)>(18, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 9 }, { 0x80000000 | 10, 11 },
+        QtMocHelpers::SlotData<void(const QString &, const QJsonObject &)>(19, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 10 }, { 0x80000000 | 11, 12 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -110,7 +111,7 @@ void RobotController::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int 
     auto *_t = static_cast<RobotController *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->stateChanged((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[5]))); break;
+        case 0: _t->stateChanged((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[5])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[6]))); break;
         case 1: _t->responseReceived((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[2]))); break;
         case 2: _t->logMessage((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
         case 3: _t->jointStatusReceived((*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[1]))); break;
@@ -122,7 +123,7 @@ void RobotController::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int 
         }
     }
     if (_c == QMetaObject::IndexOfMethod) {
-        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & , bool , bool , bool , bool )>(_a, &RobotController::stateChanged, 0))
+        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & , bool , bool , bool , bool , bool )>(_a, &RobotController::stateChanged, 0))
             return;
         if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & , const QJsonObject & )>(_a, &RobotController::responseReceived, 1))
             return;
@@ -165,9 +166,9 @@ int RobotController::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 }
 
 // SIGNAL 0
-void RobotController::stateChanged(const QString & _t1, bool _t2, bool _t3, bool _t4, bool _t5)
+void RobotController::stateChanged(const QString & _t1, bool _t2, bool _t3, bool _t4, bool _t5, bool _t6)
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 0, nullptr, _t1, _t2, _t3, _t4, _t5);
+    QMetaObject::activate<void>(this, &staticMetaObject, 0, nullptr, _t1, _t2, _t3, _t4, _t5, _t6);
 }
 
 // SIGNAL 1

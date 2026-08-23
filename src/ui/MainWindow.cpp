@@ -17,10 +17,135 @@
 #include <QList>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QStringList>
 #include <QTabWidget>
+#include <QTextDocument>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
+
+namespace
+{
+QString statusValueText(const QJsonValue &value)
+{
+    if (value.isBool())
+    {
+        return value.toBool()
+            ? QStringLiteral("true")
+            : QStringLiteral("false");
+    }
+
+    if (value.isDouble())
+    {
+        return QString::number(value.toDouble(), 'g', 6);
+    }
+
+    if (value.isString())
+    {
+        return value.toString();
+    }
+
+    return QStringLiteral("null");
+}
+
+QJsonValue findStatusValue(
+    const QJsonObject &response,
+    const QJsonObject &status,
+    const QStringList &keys)
+{
+    for (const QString &key : keys)
+    {
+        if (response.contains(key))
+        {
+            return response.value(key);
+        }
+
+        if (status.contains(key))
+        {
+            return status.value(key);
+        }
+    }
+
+    return {};
+}
+
+QString compactStatusText(const QJsonObject &response)
+{
+    const QJsonObject status =
+        response.value(QStringLiteral("status")).toObject();
+
+    QStringList parts;
+
+    const auto appendField =
+        [&parts, &response, &status](
+            const QString &label,
+            const QStringList &keys)
+        {
+            const QJsonValue value =
+                findStatusValue(response, status, keys);
+
+            if (!value.isUndefined()
+                && !value.isObject()
+                && !value.isArray())
+            {
+                parts.append(
+                    QStringLiteral("%1=%2")
+                        .arg(label, statusValueText(value)));
+            }
+        };
+
+    appendField(
+        QStringLiteral("success"),
+        {QStringLiteral("success")});
+    appendField(
+        QStringLiteral("state"),
+        {
+            QStringLiteral("state"),
+            QStringLiteral("robot_state"),
+            QStringLiteral("control_state")
+        });
+    appendField(
+        QStringLiteral("ready"),
+        {QStringLiteral("ready")});
+    appendField(
+        QStringLiteral("power"),
+        {
+            QStringLiteral("power"),
+            QStringLiteral("power_on"),
+            QStringLiteral("powered")
+        });
+    appendField(
+        QStringLiteral("servo"),
+        {
+            QStringLiteral("servo"),
+            QStringLiteral("servo_on"),
+            QStringLiteral("servo_enabled")
+        });
+    appendField(
+        QStringLiteral("stream"),
+        {
+            QStringLiteral("stream"),
+            QStringLiteral("stream_on"),
+            QStringLiteral("streaming"),
+            QStringLiteral("stream_enabled")
+        });
+    appendField(
+        QStringLiteral("message"),
+        {
+            QStringLiteral("message"),
+            QStringLiteral("error")
+        });
+
+    if (parts.isEmpty())
+    {
+        return QStringLiteral(
+            "Trạng thái: đã nhận phản hồi, không có trường chính.");
+    }
+
+    return QStringLiteral("Trạng thái: %1")
+        .arg(parts.join(QStringLiteral(" | ")));
+}
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -31,6 +156,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     applyControllerState(
         QStringLiteral("Disconnected"),
+        false,
         false,
         false,
         false,
@@ -102,14 +228,8 @@ void MainWindow::buildInterface()
             QStringLiteral("Ping"),
             connectionGroup);
 
-    statusButton_ =
-        new QPushButton(
-            QStringLiteral("Đọc trạng thái"),
-            connectionGroup);
-
     connectionLayout->addWidget(connectButton_);
     connectionLayout->addWidget(pingButton_);
-    connectionLayout->addWidget(statusButton_);
     connectionLayout->addStretch();
 
     tabWidget_ = new QTabWidget(centralWidget);
@@ -125,6 +245,7 @@ void MainWindow::buildInterface()
     logTextEdit_ = new QTextEdit(centralWidget);
     logTextEdit_->setReadOnly(true);
     logTextEdit_->setMaximumHeight(240);
+    logTextEdit_->document()->setMaximumBlockCount(5000);
 
     QFont logFont(QStringLiteral("Consolas"));
     logFont.setStyleHint(QFont::Monospace);
@@ -231,7 +352,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     leftButton_ =
         new QPushButton(
-            QStringLiteral("← Sang trái"),
+            QStringLiteral("↖ Rẽ trái"),
             driveGroup_);
 
     stopButton_ =
@@ -241,7 +362,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     rightButton_ =
         new QPushButton(
-            QStringLiteral("Sang phải →"),
+            QStringLiteral("Rẽ phải ↗"),
             driveGroup_);
 
     backwardButton_ =
@@ -317,9 +438,9 @@ QWidget *MainWindow::buildUpperBodyTab()
     auto *toolbarLayout =
         new QGridLayout(toolbarGroup);
 
-    refreshJointsButton_ =
+    initialButton_ =
         new QPushButton(
-            QStringLiteral("Làm mới khớp"),
+            QStringLiteral("INITIAL"),
             toolbarGroup);
 
     armsReadyButton_ =
@@ -327,15 +448,29 @@ QWidget *MainWindow::buildUpperBodyTab()
             QStringLiteral("Co hai tay"),
             toolbarGroup);
 
-    readyPoseButton_ =
+    setReadyButton_ =
         new QPushButton(
-            QStringLiteral("Ready pose"),
+            QStringLiteral("SET READY"),
             toolbarGroup);
 
-    zeroPoseButton_ =
+    goReadyButton_ =
         new QPushButton(
-            QStringLiteral("Zero pose"),
+            QStringLiteral("GO READY"),
             toolbarGroup);
+
+    clearReadyButton_ =
+        new QPushButton(
+            QStringLiteral("CLEAR READY"),
+            toolbarGroup);
+
+    initialButton_->setToolTip(
+        QStringLiteral("Đưa robot về tư thế ban đầu."));
+    setReadyButton_->setToolTip(
+        QStringLiteral("Lưu toàn bộ vị trí khớp hiện tại làm Ready pose."));
+    goReadyButton_->setToolTip(
+        QStringLiteral("Đưa robot về Ready pose đã lưu."));
+    clearReadyButton_->setToolTip(
+        QStringLiteral("Xóa Ready pose đã lưu."));
 
     jointStepSpinBox_ =
         new QDoubleSpinBox(toolbarGroup);
@@ -381,25 +516,18 @@ QWidget *MainWindow::buildUpperBodyTab()
         0,
         3);
 
-    toolbarLayout->addWidget(
-        refreshJointsButton_,
-        1,
-        0);
+    toolbarLayout->addWidget(initialButton_, 1, 0);
 
     toolbarLayout->addWidget(
         armsReadyButton_,
         1,
         1);
 
-    toolbarLayout->addWidget(
-        readyPoseButton_,
-        1,
-        2);
+    toolbarLayout->addWidget(setReadyButton_, 1, 2);
 
-    toolbarLayout->addWidget(
-        zeroPoseButton_,
-        1,
-        3);
+    toolbarLayout->addWidget(goReadyButton_, 1, 3);
+
+    toolbarLayout->addWidget(clearReadyButton_, 1, 4);
 
     auto *scrollArea =
         new QScrollArea(upperBodyContent_);
@@ -599,12 +727,6 @@ void MainWindow::connectSignals()
         &RobotController::ping);
 
     connect(
-        statusButton_,
-        &QPushButton::clicked,
-        controller_,
-        &RobotController::requestStatus);
-
-    connect(
         prepareButton_,
         &QPushButton::clicked,
         controller_,
@@ -673,10 +795,11 @@ void MainWindow::connectSignals()
         this,
         [this]()
         {
+            // Follow a left arc while continuing to move forward.
             controller_->startDrive(
-                0.0,
                 0.10,
-                0.0);
+                0.0,
+                0.30);
         });
 
     connect(
@@ -685,10 +808,11 @@ void MainWindow::connectSignals()
         this,
         [this]()
         {
+            // Follow a right arc while continuing to move forward.
             controller_->startDrive(
+                0.10,
                 0.0,
-                -0.10,
-                0.0);
+                -0.30);
         });
 
     connect(
@@ -740,12 +864,6 @@ void MainWindow::connectSignals()
         &RobotController::stopDrive);
 
     connect(
-        refreshJointsButton_,
-        &QPushButton::clicked,
-        controller_,
-        &RobotController::refreshJoints);
-
-    connect(
         armsReadyButton_,
         &QPushButton::clicked,
         this,
@@ -758,26 +876,50 @@ void MainWindow::connectSignals()
         });
 
     connect(
-        readyPoseButton_,
-        &QPushButton::clicked,
-        this,
-        [this]()
-        {
-            controller_->sendPose(
-                QStringLiteral("ready_pose"),
-                QStringLiteral("Ready pose"),
-                minimumTimeSpinBox_->value());
-        });
-
-    connect(
-        zeroPoseButton_,
+        initialButton_,
         &QPushButton::clicked,
         this,
         [this]()
         {
             controller_->sendPose(
                 QStringLiteral("zero_pose"),
-                QStringLiteral("Zero pose"),
+                QStringLiteral("Initial"),
+                minimumTimeSpinBox_->value());
+        });
+
+    connect(
+        setReadyButton_,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+            controller_->sendPose(
+                QStringLiteral("set_ready_pose"),
+                QStringLiteral("Set Ready"),
+                minimumTimeSpinBox_->value());
+        });
+
+    connect(
+        goReadyButton_,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+            controller_->sendPose(
+                QStringLiteral("ready_pose"),
+                QStringLiteral("Go Ready"),
+                minimumTimeSpinBox_->value());
+        });
+
+    connect(
+        clearReadyButton_,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+            controller_->sendPose(
+                QStringLiteral("clear_ready_pose"),
+                QStringLiteral("Clear Ready"),
                 minimumTimeSpinBox_->value());
         });
 
@@ -812,6 +954,12 @@ void MainWindow::connectSignals()
                 return;
             }
 
+            if (operationName == QStringLiteral("Đọc trạng thái"))
+            {
+                appendLog(compactStatusText(response));
+                return;
+            }
+
             const QString prettyJson =
                 QString::fromUtf8(
                     QJsonDocument(response)
@@ -828,6 +976,7 @@ void MainWindow::applyControllerState(
     bool connected,
     bool canDrive,
     bool canControlJoints,
+    bool canChangeSystemConfiguration,
     bool busy)
 {
     stateLabel_->setText(
@@ -845,19 +994,18 @@ void MainWindow::applyControllerState(
             : QStringLiteral("Kết nối"));
 
     pingButton_->setEnabled(connected);
-    statusButton_->setEnabled(connected);
 
     prepareButton_->setEnabled(
-        connected && !busy);
+        connected && canChangeSystemConfiguration && !busy);
 
     powerSwitch_->setEnabled(
-        connected && !busy);
+        connected && canChangeSystemConfiguration && !busy);
 
     servoSwitch_->setEnabled(
-        connected && !busy);
+        connected && canChangeSystemConfiguration && !busy);
 
     streamSwitch_->setEnabled(
-        connected && !busy);
+        connected && canChangeSystemConfiguration && !busy);
 
     if (canDrive) {
         powerSwitch_->blockSignals(true);

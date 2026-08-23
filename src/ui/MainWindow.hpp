@@ -46,6 +46,7 @@ private:
         bool connected,
         bool canDrive,
         bool canControlJoints,
+        bool canChangeSystemConfiguration,
         bool busy);
 
     void appendLog(
@@ -61,7 +62,6 @@ private:
 
     QPushButton *connectButton_{nullptr};
     QPushButton *pingButton_{nullptr};
-    QPushButton *statusButton_{nullptr};
 
     QPushButton *prepareButton_{nullptr};
     ToggleSwitch *powerSwitch_{nullptr};
@@ -77,10 +77,11 @@ private:
     QPushButton *rotateRightButton_{nullptr};
     QPushButton *stopButton_{nullptr};
 
-    QPushButton *refreshJointsButton_{nullptr};
+    QPushButton *initialButton_{nullptr};
     QPushButton *armsReadyButton_{nullptr};
-    QPushButton *readyPoseButton_{nullptr};
-    QPushButton *zeroPoseButton_{nullptr};
+    QPushButton *setReadyButton_{nullptr};
+    QPushButton *goReadyButton_{nullptr};
+    QPushButton *clearReadyButton_{nullptr};
 
     QDoubleSpinBox *jointStepSpinBox_{nullptr};
     QDoubleSpinBox *minimumTimeSpinBox_{nullptr};

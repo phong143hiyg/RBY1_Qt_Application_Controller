@@ -141,9 +141,13 @@ joint_nudge
 arms_ready
 ready_pose
 zero_pose
+set_ready_pose
+clear_ready_pose
 ```
 
-Không cần đổi TCP protocol nếu bridge Mốc 4 hiện tại đã hỗ trợ các command trên.
+Bridge cần hỗ trợ `set_ready_pose` để lưu toàn bộ vị trí khớp hiện tại và
+`clear_ready_pose` để xóa pose đã lưu. Command `ready_pose` phải đưa robot về
+Ready pose động đã được lưu bởi `set_ready_pose`.
 
 ## Build
 
