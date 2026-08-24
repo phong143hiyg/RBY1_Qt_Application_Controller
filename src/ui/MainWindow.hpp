@@ -49,6 +49,13 @@ private:
         bool canChangeSystemConfiguration,
         bool busy);
 
+    void applySystemConfiguration(
+        bool powerEnabled,
+        bool servoEnabled,
+        bool streamEnabled);
+
+    void updateSystemSwitchAvailability();
+
     void appendLog(
         const QString &message);
 
@@ -94,4 +101,9 @@ private:
 
     QTabWidget *tabWidget_{nullptr};
     QTextEdit *logTextEdit_{nullptr};
+
+    bool controllerConnected_{false};
+    bool canChangeSystemConfiguration_{false};
+    bool controllerBusy_{false};
+    bool powerEnabled_{false};
 };

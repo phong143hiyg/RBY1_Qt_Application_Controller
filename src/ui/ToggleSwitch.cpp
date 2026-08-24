@@ -31,7 +31,9 @@ void ToggleSwitch::paintEvent(QPaintEvent* event) {
     trackPath.addRoundedRect(trackRect, trackHeight / 2.0, trackHeight / 2.0);
     
     p.setPen(Qt::NoPen);
-    if (isChecked()) {
+    if (!isEnabled()) {
+        p.setBrush(QColor("#D0D0D0"));
+    } else if (isChecked()) {
         p.setBrush(QColor("#4CAF50")); // Green
     } else {
         p.setBrush(QColor("#B0B0B0")); // Gray
@@ -39,13 +41,21 @@ void ToggleSwitch::paintEvent(QPaintEvent* event) {
     p.drawPath(trackPath);
 
     // Draw thumb
-    p.setBrush(Qt::white);
+    p.setBrush(
+        isEnabled()
+            ? QColor(Qt::white)
+            : QColor("#F0F0F0"));
     p.drawEllipse(QRectF(trackRect.x() + thumbX, trackRect.y() + thumbY, 2 * thumbRadius, 2 * thumbRadius));
 
     // Draw text
     QRect textRect = rect();
     textRect.setLeft(trackRect.right() + 8);
-    p.setPen(palette().color(QPalette::WindowText));
+    p.setPen(
+        palette().color(
+            isEnabled()
+                ? QPalette::Active
+                : QPalette::Disabled,
+            QPalette::WindowText));
     p.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text());
 }
 

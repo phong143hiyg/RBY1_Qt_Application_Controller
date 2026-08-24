@@ -8,6 +8,34 @@
 #include "state/RobotState.hpp"
 
 #include <QJsonObject>
+#include <QJsonValue>
+#include <QStringList>
+
+namespace
+{
+QJsonValue findSystemStatusValue(
+    const QJsonObject &response,
+    const QStringList &keys)
+{
+    const QJsonObject status =
+        response.value(QStringLiteral("status")).toObject();
+
+    for (const QString &key : keys)
+    {
+        if (response.contains(key))
+        {
+            return response.value(key);
+        }
+
+        if (status.contains(key))
+        {
+            return status.value(key);
+        }
+    }
+
+    return {};
+}
+}
 
 RobotController::RobotController(QObject *parent)
     : QObject(parent),
@@ -119,6 +147,25 @@ void RobotController::setPower(bool enabled)
         return;
     }
 
+    if (!enabled)
+    {
+        powerEnabled_ = false;
+        servoEnabled_ = false;
+        streamEnabled_ = false;
+        emitSystemConfiguration();
+
+        // Shut down dependent subsystems before cutting their power source.
+        sendSwitchInternal(
+            QStringLiteral("servo"),
+            false,
+            QStringLiteral("Servo OFF"));
+
+        sendSwitchInternal(
+            QStringLiteral("stream"),
+            false,
+            QStringLiteral("Stream OFF"));
+    }
+
     sendSwitchInternal(
         QStringLiteral("power"),
         enabled,
@@ -139,6 +186,15 @@ void RobotController::setServo(bool enabled)
         return;
     }
 
+    if (enabled && !powerEnabled_)
+    {
+        rejectAction(
+            QStringLiteral(
+                "Phải bật Power trước khi bật Servo."));
+        emitSystemConfiguration();
+        return;
+    }
+
     sendSwitchInternal(
         QStringLiteral("servo"),
         enabled,
@@ -156,6 +212,15 @@ void RobotController::setStream(bool enabled)
             QStringLiteral(
                 "Không thể đổi Stream trong trạng thái %1.")
                 .arg(state_->name()));
+        return;
+    }
+
+    if (enabled && !powerEnabled_)
+    {
+        rejectAction(
+            QStringLiteral(
+                "Phải bật Power trước khi bật Stream."));
+        emitSystemConfiguration();
         return;
     }
 
@@ -432,6 +497,11 @@ void RobotController::handleBridgeDisconnected()
     statusTimer_.stop();
     statusRequestPending_ = false;
 
+    powerEnabled_ = false;
+    servoEnabled_ = false;
+    streamEnabled_ = false;
+    emitSystemConfiguration();
+
     transitionTo(
         std::make_unique<DisconnectedState>());
 
@@ -472,16 +542,70 @@ void RobotController::handleResponse(
         updateStateFromStatus(response);
     }
 
+    if (operationName == QStringLiteral("Đọc trạng thái"))
+    {
+        updateSystemConfigurationFromStatus(response);
+    }
+
+    const bool switchSucceeded =
+        response.value(
+            QStringLiteral("success")).toBool(false);
+
+    const bool isSwitchOperation =
+        operationName == QStringLiteral("Power ON")
+        || operationName == QStringLiteral("Power OFF")
+        || operationName == QStringLiteral("Servo ON")
+        || operationName == QStringLiteral("Servo OFF")
+        || operationName == QStringLiteral("Stream ON")
+        || operationName == QStringLiteral("Stream OFF");
+
+    if (switchSucceeded)
+    {
+        if (operationName == QStringLiteral("Power ON"))
+        {
+            powerEnabled_ = true;
+            emitSystemConfiguration();
+        }
+        else if (operationName == QStringLiteral("Power OFF"))
+        {
+            powerEnabled_ = false;
+            servoEnabled_ = false;
+            streamEnabled_ = false;
+            emitSystemConfiguration();
+        }
+        else if (operationName == QStringLiteral("Servo ON"))
+        {
+            servoEnabled_ = powerEnabled_;
+            emitSystemConfiguration();
+        }
+        else if (operationName == QStringLiteral("Servo OFF"))
+        {
+            servoEnabled_ = false;
+            emitSystemConfiguration();
+        }
+        else if (operationName == QStringLiteral("Stream ON"))
+        {
+            streamEnabled_ = powerEnabled_;
+            emitSystemConfiguration();
+        }
+        else if (operationName == QStringLiteral("Stream OFF"))
+        {
+            streamEnabled_ = false;
+            emitSystemConfiguration();
+        }
+    }
+    else if (isSwitchOperation)
+    {
+        // Restore the last confirmed values after a rejected/failed command.
+        emitSystemConfiguration();
+    }
+
     if (
         operationName == QStringLiteral("Power OFF")
         || operationName == QStringLiteral("Servo OFF")
         || operationName == QStringLiteral("Stream OFF"))
     {
-        const bool success =
-            response.value(
-                QStringLiteral("success")).toBool(false);
-
-        if (success)
+        if (switchSucceeded)
         {
             transitionTo(
                 std::make_unique<ConnectedState>());
@@ -492,17 +616,18 @@ void RobotController::handleResponse(
         || operationName == QStringLiteral("Servo ON")
         || operationName == QStringLiteral("Stream ON"))
     {
-        const bool success =
-            response.value(
-                QStringLiteral("success")).toBool(false);
-
-        if (success)
+        if (switchSucceeded)
         {
-            // Turning a subsystem back on invalidates the ready state in the
-            // bridge.  A status query can only report that fact; it cannot
-            // restore the control session.  Re-run prepare so this path is
-            // deterministic: Connected -> Preparing -> Ready.
-            prepareRobot();
+            if (powerEnabled_ && servoEnabled_ && streamEnabled_)
+            {
+                // Restore Ready only after all required subsystems are on.
+                prepareRobot();
+            }
+            else if (state_->name() != QStringLiteral("Connected"))
+            {
+                transitionTo(
+                    std::make_unique<ConnectedState>());
+            }
         }
     }
 }
@@ -589,4 +714,73 @@ void RobotController::updateStateFromStatus(
                 std::make_unique<ConnectedState>());
         }
     }
+}
+
+void RobotController::updateSystemConfigurationFromStatus(
+    const QJsonObject &response)
+{
+    if (!response.value(
+            QStringLiteral("success")).toBool(false))
+    {
+        return;
+    }
+
+    const QJsonValue powerValue =
+        findSystemStatusValue(
+            response,
+            {
+                QStringLiteral("power"),
+                QStringLiteral("power_on"),
+                QStringLiteral("powered")
+            });
+
+    const QJsonValue servoValue =
+        findSystemStatusValue(
+            response,
+            {
+                QStringLiteral("servo"),
+                QStringLiteral("servo_on"),
+                QStringLiteral("servo_enabled")
+            });
+
+    const QJsonValue streamValue =
+        findSystemStatusValue(
+            response,
+            {
+                QStringLiteral("stream"),
+                QStringLiteral("stream_on"),
+                QStringLiteral("streaming"),
+                QStringLiteral("stream_enabled")
+            });
+
+    if (powerValue.isBool())
+    {
+        powerEnabled_ = powerValue.toBool();
+    }
+
+    if (servoValue.isBool())
+    {
+        servoEnabled_ = servoValue.toBool();
+    }
+
+    if (streamValue.isBool())
+    {
+        streamEnabled_ = streamValue.toBool();
+    }
+
+    if (!powerEnabled_)
+    {
+        servoEnabled_ = false;
+        streamEnabled_ = false;
+    }
+
+    emitSystemConfiguration();
+}
+
+void RobotController::emitSystemConfiguration()
+{
+    emit systemConfigurationChanged(
+        powerEnabled_,
+        servoEnabled_,
+        streamEnabled_);
 }

@@ -47,6 +47,10 @@ template <> constexpr inline auto RobotController::qt_create_metaobjectdata<qt_m
         "canControlJoints",
         "canChangeSystemConfiguration",
         "busy",
+        "systemConfigurationChanged",
+        "powerEnabled",
+        "servoEnabled",
+        "streamEnabled",
         "responseReceived",
         "operationName",
         "QJsonObject",
@@ -66,27 +70,31 @@ template <> constexpr inline auto RobotController::qt_create_metaobjectdata<qt_m
             { QMetaType::QString, 3 }, { QMetaType::Bool, 4 }, { QMetaType::Bool, 5 }, { QMetaType::Bool, 6 },
             { QMetaType::Bool, 7 }, { QMetaType::Bool, 8 },
         }}),
+        // Signal 'systemConfigurationChanged'
+        QtMocHelpers::SignalData<void(bool, bool, bool)>(9, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 10 }, { QMetaType::Bool, 11 }, { QMetaType::Bool, 12 },
+        }}),
         // Signal 'responseReceived'
-        QtMocHelpers::SignalData<void(const QString &, const QJsonObject &)>(9, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 10 }, { 0x80000000 | 11, 12 },
+        QtMocHelpers::SignalData<void(const QString &, const QJsonObject &)>(13, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 14 }, { 0x80000000 | 15, 16 },
         }}),
         // Signal 'logMessage'
-        QtMocHelpers::SignalData<void(const QString &)>(13, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 14 },
+        QtMocHelpers::SignalData<void(const QString &)>(17, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 18 },
         }}),
         // Signal 'jointStatusReceived'
-        QtMocHelpers::SignalData<void(const QJsonObject &)>(15, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 11, 12 },
+        QtMocHelpers::SignalData<void(const QJsonObject &)>(19, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 15, 16 },
         }}),
         // Slot 'sendVelocityTick'
-        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'handleBridgeConnected'
-        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'handleBridgeDisconnected'
-        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(22, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'handleResponse'
-        QtMocHelpers::SlotData<void(const QString &, const QJsonObject &)>(19, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 10 }, { 0x80000000 | 11, 12 },
+        QtMocHelpers::SlotData<void(const QString &, const QJsonObject &)>(23, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 14 }, { 0x80000000 | 15, 16 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -112,24 +120,27 @@ void RobotController::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int 
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
         case 0: _t->stateChanged((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[5])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[6]))); break;
-        case 1: _t->responseReceived((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[2]))); break;
-        case 2: _t->logMessage((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 3: _t->jointStatusReceived((*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[1]))); break;
-        case 4: _t->sendVelocityTick(); break;
-        case 5: _t->handleBridgeConnected(); break;
-        case 6: _t->handleBridgeDisconnected(); break;
-        case 7: _t->handleResponse((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[2]))); break;
+        case 1: _t->systemConfigurationChanged((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[3]))); break;
+        case 2: _t->responseReceived((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[2]))); break;
+        case 3: _t->logMessage((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 4: _t->jointStatusReceived((*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[1]))); break;
+        case 5: _t->sendVelocityTick(); break;
+        case 6: _t->handleBridgeConnected(); break;
+        case 7: _t->handleBridgeDisconnected(); break;
+        case 8: _t->handleResponse((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QJsonObject>>(_a[2]))); break;
         default: ;
         }
     }
     if (_c == QMetaObject::IndexOfMethod) {
         if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & , bool , bool , bool , bool , bool )>(_a, &RobotController::stateChanged, 0))
             return;
-        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & , const QJsonObject & )>(_a, &RobotController::responseReceived, 1))
+        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(bool , bool , bool )>(_a, &RobotController::systemConfigurationChanged, 1))
             return;
-        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & )>(_a, &RobotController::logMessage, 2))
+        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & , const QJsonObject & )>(_a, &RobotController::responseReceived, 2))
             return;
-        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QJsonObject & )>(_a, &RobotController::jointStatusReceived, 3))
+        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QString & )>(_a, &RobotController::logMessage, 3))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (RobotController::*)(const QJsonObject & )>(_a, &RobotController::jointStatusReceived, 4))
             return;
     }
 }
@@ -153,14 +164,14 @@ int RobotController::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 9)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 9;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 9)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 8;
+        _id -= 9;
     }
     return _id;
 }
@@ -172,20 +183,26 @@ void RobotController::stateChanged(const QString & _t1, bool _t2, bool _t3, bool
 }
 
 // SIGNAL 1
-void RobotController::responseReceived(const QString & _t1, const QJsonObject & _t2)
+void RobotController::systemConfigurationChanged(bool _t1, bool _t2, bool _t3)
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 1, nullptr, _t1, _t2);
+    QMetaObject::activate<void>(this, &staticMetaObject, 1, nullptr, _t1, _t2, _t3);
 }
 
 // SIGNAL 2
-void RobotController::logMessage(const QString & _t1)
+void RobotController::responseReceived(const QString & _t1, const QJsonObject & _t2)
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 2, nullptr, _t1);
+    QMetaObject::activate<void>(this, &staticMetaObject, 2, nullptr, _t1, _t2);
 }
 
 // SIGNAL 3
-void RobotController::jointStatusReceived(const QJsonObject & _t1)
+void RobotController::logMessage(const QString & _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1);
+}
+
+// SIGNAL 4
+void RobotController::jointStatusReceived(const QJsonObject & _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 4, nullptr, _t1);
 }
 QT_WARNING_POP

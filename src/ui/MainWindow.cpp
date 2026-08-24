@@ -738,6 +738,16 @@ void MainWindow::connectSignals()
         this,
         [this](bool checked)
         {
+            if (!checked)
+            {
+                // Reflect the dependency immediately while the three OFF
+                // commands are being acknowledged by the bridge.
+                applySystemConfiguration(
+                    false,
+                    false,
+                    false);
+            }
+
             controller_->setPower(checked);
         });
 
@@ -931,6 +941,12 @@ void MainWindow::connectSignals()
 
     connect(
         controller_,
+        &RobotController::systemConfigurationChanged,
+        this,
+        &MainWindow::applySystemConfiguration);
+
+    connect(
+        controller_,
         &RobotController::logMessage,
         this,
         &MainWindow::appendLog);
@@ -979,6 +995,11 @@ void MainWindow::applyControllerState(
     bool canChangeSystemConfiguration,
     bool busy)
 {
+    controllerConnected_ = connected;
+    canChangeSystemConfiguration_ =
+        canChangeSystemConfiguration;
+    controllerBusy_ = busy;
+
     stateLabel_->setText(
         QStringLiteral("State: %1")
             .arg(stateName));
@@ -998,40 +1019,7 @@ void MainWindow::applyControllerState(
     prepareButton_->setEnabled(
         connected && canChangeSystemConfiguration && !busy);
 
-    powerSwitch_->setEnabled(
-        connected && canChangeSystemConfiguration && !busy);
-
-    servoSwitch_->setEnabled(
-        connected && canChangeSystemConfiguration && !busy);
-
-    streamSwitch_->setEnabled(
-        connected && canChangeSystemConfiguration && !busy);
-
-    if (canDrive) {
-        powerSwitch_->blockSignals(true);
-        servoSwitch_->blockSignals(true);
-        streamSwitch_->blockSignals(true);
-
-        powerSwitch_->setChecked(true);
-        servoSwitch_->setChecked(true);
-        streamSwitch_->setChecked(true);
-
-        powerSwitch_->blockSignals(false);
-        servoSwitch_->blockSignals(false);
-        streamSwitch_->blockSignals(false);
-    } else if (!connected) {
-        powerSwitch_->blockSignals(true);
-        servoSwitch_->blockSignals(true);
-        streamSwitch_->blockSignals(true);
-
-        powerSwitch_->setChecked(false);
-        servoSwitch_->setChecked(false);
-        streamSwitch_->setChecked(false);
-
-        powerSwitch_->blockSignals(false);
-        servoSwitch_->blockSignals(false);
-        streamSwitch_->blockSignals(false);
-    }
+    updateSystemSwitchAvailability();
 
     cancelButton_->setEnabled(connected);
 
@@ -1042,6 +1030,44 @@ void MainWindow::applyControllerState(
         connected && canControlJoints && !busy);
 
     tabWidget_->setEnabled(connected);
+}
+
+void MainWindow::applySystemConfiguration(
+    bool powerEnabled,
+    bool servoEnabled,
+    bool streamEnabled)
+{
+    powerEnabled_ = powerEnabled;
+
+    powerSwitch_->blockSignals(true);
+    servoSwitch_->blockSignals(true);
+    streamSwitch_->blockSignals(true);
+
+    powerSwitch_->setChecked(powerEnabled);
+    servoSwitch_->setChecked(
+        powerEnabled && servoEnabled);
+    streamSwitch_->setChecked(
+        powerEnabled && streamEnabled);
+
+    powerSwitch_->blockSignals(false);
+    servoSwitch_->blockSignals(false);
+    streamSwitch_->blockSignals(false);
+
+    updateSystemSwitchAvailability();
+}
+
+void MainWindow::updateSystemSwitchAvailability()
+{
+    const bool configurationAvailable =
+        controllerConnected_
+        && canChangeSystemConfiguration_
+        && !controllerBusy_;
+
+    powerSwitch_->setEnabled(configurationAvailable);
+    servoSwitch_->setEnabled(
+        configurationAvailable && powerEnabled_);
+    streamSwitch_->setEnabled(
+        configurationAvailable && powerEnabled_);
 }
 
 void MainWindow::appendLog(

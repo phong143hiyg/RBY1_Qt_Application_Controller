@@ -93,6 +93,11 @@ signals:
         bool canChangeSystemConfiguration,
         bool busy);
 
+    void systemConfigurationChanged(
+        bool powerEnabled,
+        bool servoEnabled,
+        bool streamEnabled);
+
     void responseReceived(
         const QString &operationName,
         const QJsonObject &response);
@@ -124,6 +129,11 @@ private:
     void updateStateFromStatus(
         const QJsonObject &response);
 
+    void updateSystemConfigurationFromStatus(
+        const QJsonObject &response);
+
+    void emitSystemConfiguration();
+
     RobotClient *client_{nullptr};
     QTimer velocityTimer_;
     QTimer statusTimer_;
@@ -135,4 +145,8 @@ private:
     double angularZ_{0.0};
 
     bool statusRequestPending_{false};
+
+    bool powerEnabled_{false};
+    bool servoEnabled_{false};
+    bool streamEnabled_{false};
 };
