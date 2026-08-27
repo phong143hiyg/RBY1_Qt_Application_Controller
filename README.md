@@ -88,7 +88,15 @@ Không cho phép điều khiển robot.
 
 TCP đã kết nối nhưng robot chưa được xác nhận Ready.
 
-Cho phép Prepare.
+Sau khi kết nối, ứng dụng luôn giữ state `Connected`, kể cả khi status của
+bridge đang báo `ready=true`. Người dùng có thể nhấn `CHUẨN BỊ ROBOT` để bật
+nhanh Power, Servo và Stream rồi chuyển sang `Preparing`, hoặc tự bật từng
+công tắc; khi bridge xác nhận cả ba đã bật, ứng dụng tự chuyển sang
+`Preparing` rồi `Ready`.
+
+Ô `Ready` trên giao diện phản ánh state điều khiển của ứng dụng, không hiển thị
+trực tiếp cờ `ready` cũ của bridge. Vì vậy ngay sau khi kết nối, ô này luôn là
+`Không` cho đến khi thao tác chuẩn bị trong phiên kết nối hiện tại thành công.
 
 ### PreparingState
 
@@ -203,7 +211,14 @@ Disconnected -> Connected
 Prepare:
 
 ```text
+CHUẨN BỊ ROBOT -> Power ON + Servo ON + Stream ON
 Connected -> Preparing -> Ready
+```
+
+Hoặc bật thủ công:
+
+```text
+Power ON -> Servo ON -> Stream ON -> Preparing -> Ready
 ```
 
 Giữ nút Tiến:

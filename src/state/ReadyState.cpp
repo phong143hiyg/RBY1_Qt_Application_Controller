@@ -10,17 +10,14 @@ std::unique_ptr<RobotState> ReadyState::prepare(
 {
     controller.stopVelocityInternal();
 
-    const bool sent =
-        controller.sendSimpleInternal(
-            QStringLiteral("prepare"),
-            QStringLiteral("Chuẩn bị robot"));
+    auto preparing = std::make_unique<PreparingState>();
 
-    if (!sent)
+    if (!preparing->start(controller))
     {
         return nullptr;
     }
 
-    return std::make_unique<PreparingState>();
+    return preparing;
 }
 
 std::unique_ptr<RobotState> ReadyState::startDrive(

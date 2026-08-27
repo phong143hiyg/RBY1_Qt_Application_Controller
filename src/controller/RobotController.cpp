@@ -547,7 +547,7 @@ void RobotController::handleResponse(
         updateSystemConfigurationFromStatus(response);
     }
 
-    const bool switchSucceeded =
+    const bool operationSucceeded =
         response.value(
             QStringLiteral("success")).toBool(false);
 
@@ -559,7 +559,7 @@ void RobotController::handleResponse(
         || operationName == QStringLiteral("Stream ON")
         || operationName == QStringLiteral("Stream OFF");
 
-    if (switchSucceeded)
+    if (operationSucceeded)
     {
         if (operationName == QStringLiteral("Power ON"))
         {
@@ -605,7 +605,7 @@ void RobotController::handleResponse(
         || operationName == QStringLiteral("Servo OFF")
         || operationName == QStringLiteral("Stream OFF"))
     {
-        if (switchSucceeded)
+        if (operationSucceeded)
         {
             transitionTo(
                 std::make_unique<ConnectedState>());
@@ -616,17 +616,13 @@ void RobotController::handleResponse(
         || operationName == QStringLiteral("Servo ON")
         || operationName == QStringLiteral("Stream ON"))
     {
-        if (switchSucceeded)
+        if (operationSucceeded)
         {
-            if (powerEnabled_ && servoEnabled_ && streamEnabled_)
+            if (state_->name() == QStringLiteral("Connected")
+                && powerEnabled_ && servoEnabled_ && streamEnabled_)
             {
-                // Restore Ready only after all required subsystems are on.
+                // Người dùng đã bật và bridge đã xác nhận đủ ba hệ thống.
                 prepareRobot();
-            }
-            else if (state_->name() != QStringLiteral("Connected"))
-            {
-                transitionTo(
-                    std::make_unique<ConnectedState>());
             }
         }
     }
@@ -700,19 +696,15 @@ void RobotController::updateStateFromStatus(
 
     if (ready)
     {
-        if (state_->name() != QStringLiteral("Ready"))
-        {
-            transitionTo(
-                std::make_unique<ReadyState>());
-        }
+        // Status chỉ xác nhận trạng thái của bridge. Không tự nâng ứng dụng
+        // từ Connected lên Ready; người dùng phải nhấn Chuẩn bị robot.
+        return;
     }
-    else
+
+    if (state_->name() == QStringLiteral("Ready"))
     {
-        if (state_->name() != QStringLiteral("Connected"))
-        {
-            transitionTo(
-                std::make_unique<ConnectedState>());
-        }
+        transitionTo(
+            std::make_unique<ConnectedState>());
     }
 }
 

@@ -5,6 +5,7 @@
 
 #include <QCloseEvent>
 #include <QDateTime>
+#include <QDialog>
 #include <QDoubleSpinBox>
 #include <QFont>
 #include <QGridLayout>
@@ -17,6 +18,7 @@
 #include <QList>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSlider>
 #include <QStringList>
 #include <QTabWidget>
 #include <QTextDocument>
@@ -26,6 +28,18 @@
 
 namespace
 {
+constexpr double kPi = 3.14159265358979323846;
+
+double degreesToRadians(double degrees)
+{
+    return degrees * kPi / 180.0;
+}
+
+double radiansToDegrees(double radians)
+{
+    return radians * 180.0 / kPi;
+}
+
 QString statusValueText(const QJsonValue &value)
 {
     if (value.isBool())
@@ -228,34 +242,42 @@ void MainWindow::buildInterface()
             QStringLiteral("Ping"),
             connectionGroup);
 
+    logButton_ =
+        new QPushButton(
+            QStringLiteral("Log"),
+            connectionGroup);
+
     connectionLayout->addWidget(connectButton_);
     connectionLayout->addWidget(pingButton_);
+    connectionLayout->addWidget(logButton_);
     connectionLayout->addStretch();
 
     tabWidget_ = new QTabWidget(centralWidget);
 
     tabWidget_->addTab(
         buildSystemAndBaseTab(),
-        QStringLiteral("Hệ thống & đế"));
+        QStringLiteral("Điều khiển robot"));
 
-    tabWidget_->addTab(
-        buildUpperBodyTab(),
-        QStringLiteral("Thân, đầu & hai tay"));
+    logWindow_ = new QDialog(this);
+    logWindow_->setWindowTitle(
+        QStringLiteral("Log robot"));
+    logWindow_->resize(820, 520);
 
-    logTextEdit_ = new QTextEdit(centralWidget);
+    auto *logLayout = new QVBoxLayout(logWindow_);
+
+    logTextEdit_ = new QTextEdit(logWindow_);
     logTextEdit_->setReadOnly(true);
-    logTextEdit_->setMaximumHeight(240);
     logTextEdit_->document()->setMaximumBlockCount(5000);
 
     QFont logFont(QStringLiteral("Consolas"));
     logFont.setStyleHint(QFont::Monospace);
     logTextEdit_->setFont(logFont);
+    logLayout->addWidget(logTextEdit_);
 
     mainLayout->addWidget(titleLabel);
     mainLayout->addLayout(statusLayout);
     mainLayout->addWidget(connectionGroup);
     mainLayout->addWidget(tabWidget_, 1);
-    mainLayout->addWidget(logTextEdit_);
 
     setCentralWidget(centralWidget);
 }
@@ -263,7 +285,8 @@ void MainWindow::buildInterface()
 QWidget *MainWindow::buildSystemAndBaseTab()
 {
     auto *tab = new QWidget();
-    auto *layout = new QHBoxLayout(tab);
+    auto *layout = new QVBoxLayout(tab);
+    auto *topLayout = new QHBoxLayout();
 
     systemGroup_ =
         new QGroupBox(
@@ -280,6 +303,9 @@ QWidget *MainWindow::buildSystemAndBaseTab()
             systemGroup_);
 
     prepareButton_->setMinimumHeight(42);
+    prepareButton_->setToolTip(
+        QStringLiteral(
+            "Bật nhanh Power, Servo và Stream rồi đưa robot vào Ready."));
 
     powerSwitch_ =
         new ToggleSwitch(
@@ -390,7 +416,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     for (QPushButton *button : buttons)
     {
-        button->setMinimumSize(140, 58);
+        button->setMinimumSize(96, 48);
     }
 
     driveLayout->addWidget(
@@ -414,8 +440,57 @@ QWidget *MainWindow::buildSystemAndBaseTab()
     driveLayout->addWidget(
         backwardButton_, 2, 1);
 
-    layout->addWidget(systemGroup_, 1);
-    layout->addWidget(driveGroup_, 2);
+    robotStatusGroup_ =
+        new QGroupBox(
+            QStringLiteral("Trạng thái robot hiện tại"),
+            tab);
+
+    auto *robotStatusLayout =
+        new QGridLayout(robotStatusGroup_);
+
+    robotConnectionValueLabel_ = new QLabel(QStringLiteral("Chưa kết nối"), robotStatusGroup_);
+    robotControllerStateValueLabel_ = new QLabel(QStringLiteral("Disconnected"), robotStatusGroup_);
+    robotBridgeStateValueLabel_ = new QLabel(QStringLiteral("—"), robotStatusGroup_);
+    robotReadyValueLabel_ = new QLabel(QStringLiteral("—"), robotStatusGroup_);
+    robotPowerValueLabel_ = new QLabel(QStringLiteral("Tắt"), robotStatusGroup_);
+    robotServoValueLabel_ = new QLabel(QStringLiteral("Tắt"), robotStatusGroup_);
+    robotStreamValueLabel_ = new QLabel(QStringLiteral("Tắt"), robotStatusGroup_);
+    robotLastUpdateValueLabel_ = new QLabel(QStringLiteral("—"), robotStatusGroup_);
+    robotMessageValueLabel_ = new QLabel(QStringLiteral("—"), robotStatusGroup_);
+    robotMessageValueLabel_->setWordWrap(true);
+
+    const QList<QPair<QString, QLabel *>> statusRows{
+        {QStringLiteral("Kết nối:"), robotConnectionValueLabel_},
+        {QStringLiteral("State ứng dụng:"), robotControllerStateValueLabel_},
+        {QStringLiteral("State bridge:"), robotBridgeStateValueLabel_},
+        {QStringLiteral("Ready:"), robotReadyValueLabel_},
+        {QStringLiteral("Power:"), robotPowerValueLabel_},
+        {QStringLiteral("Servo:"), robotServoValueLabel_},
+        {QStringLiteral("Stream:"), robotStreamValueLabel_},
+        {QStringLiteral("Cập nhật lúc:"), robotLastUpdateValueLabel_},
+        {QStringLiteral("Thông báo:"), robotMessageValueLabel_}
+    };
+
+    for (int row = 0; row < statusRows.size(); ++row)
+    {
+        auto *nameLabel =
+            new QLabel(statusRows.at(row).first, robotStatusGroup_);
+        nameLabel->setStyleSheet(
+            QStringLiteral("font-weight:600;"));
+
+        robotStatusLayout->addWidget(nameLabel, row, 0);
+        robotStatusLayout->addWidget(statusRows.at(row).second, row, 1);
+    }
+
+    robotStatusLayout->setColumnStretch(1, 1);
+    robotStatusLayout->setRowStretch(statusRows.size(), 1);
+
+    topLayout->addWidget(systemGroup_, 1);
+    topLayout->addWidget(driveGroup_, 2);
+    topLayout->addWidget(robotStatusGroup_, 2);
+
+    layout->addLayout(topLayout);
+    layout->addWidget(buildUpperBodyTab(), 1);
 
     return tab;
 }
@@ -450,37 +525,65 @@ QWidget *MainWindow::buildUpperBodyTab()
 
     setReadyButton_ =
         new QPushButton(
-            QStringLiteral("SET READY"),
+            QStringLiteral("SET POSE"),
             toolbarGroup);
 
     goReadyButton_ =
         new QPushButton(
-            QStringLiteral("GO READY"),
+            QStringLiteral("GO POSE"),
             toolbarGroup);
 
     clearReadyButton_ =
         new QPushButton(
-            QStringLiteral("CLEAR READY"),
+            QStringLiteral("CLEAR POSE"),
             toolbarGroup);
 
     initialButton_->setToolTip(
         QStringLiteral("Đưa robot về tư thế ban đầu."));
     setReadyButton_->setToolTip(
-        QStringLiteral("Lưu toàn bộ vị trí khớp hiện tại làm Ready pose."));
+        QStringLiteral("Lưu toàn bộ vị trí khớp hiện tại làm pose."));
     goReadyButton_->setToolTip(
-        QStringLiteral("Đưa robot về Ready pose đã lưu."));
+        QStringLiteral("Đưa robot về pose đã lưu."));
     clearReadyButton_->setToolTip(
-        QStringLiteral("Xóa Ready pose đã lưu."));
+        QStringLiteral("Xóa pose đã lưu."));
 
     jointStepSpinBox_ =
         new QDoubleSpinBox(toolbarGroup);
 
-    jointStepSpinBox_->setRange(0.01, 0.20);
+    // The UI is in degrees; RobotController/bridge continue to use radians.
+    jointStepSpinBox_->setRange(
+        0.01 * 180.0 / kPi,
+        0.20 * 180.0 / kPi);
     jointStepSpinBox_->setDecimals(2);
-    jointStepSpinBox_->setSingleStep(0.01);
-    jointStepSpinBox_->setValue(0.05);
+    jointStepSpinBox_->setSingleStep(0.1);
+    jointStepSpinBox_->setValue(0.05 * 180.0 / kPi);
     jointStepSpinBox_->setSuffix(
-        QStringLiteral(" rad"));
+        QStringLiteral(" \u00B0"));
+
+    connect(
+        jointStepSpinBox_,
+        QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+        this,
+        [this](double stepDegrees)
+        {
+            const int span =
+                static_cast<int>(stepDegrees * 100.0);
+
+            for (auto groupIt = jointSliders_.begin();
+                 groupIt != jointSliders_.end();
+                 ++groupIt)
+            {
+                for (QSlider *slider : groupIt.value())
+                {
+                    const int center =
+                        static_cast<int>(
+                            slider->property("confirmedDegrees").toDouble()
+                            * 100.0);
+                    slider->setRange(center - span, center + span);
+                    slider->setValue(center);
+                }
+            }
+        });
 
     minimumTimeSpinBox_ =
         new QDoubleSpinBox(toolbarGroup);
@@ -622,6 +725,9 @@ QGroupBox *MainWindow::buildJointGroup(
     QVector<QLabel *> labels;
     labels.reserve(jointCount);
 
+    QVector<QSlider *> sliders;
+    sliders.reserve(jointCount);
+
     for (int index = 0; index < jointCount; ++index)
     {
         auto *nameLabel =
@@ -658,7 +764,7 @@ QGroupBox *MainWindow::buildJointGroup(
             [this, groupName, index]()
             {
                 const double delta =
-                    -jointStepSpinBox_->value();
+                    -degreesToRadians(jointStepSpinBox_->value());
 
                 controller_->nudgeJoint(
                     groupName,
@@ -674,7 +780,7 @@ QGroupBox *MainWindow::buildJointGroup(
             [this, groupName, index]()
             {
                 const double delta =
-                    jointStepSpinBox_->value();
+                    degreesToRadians(jointStepSpinBox_->value());
 
                 controller_->nudgeJoint(
                     groupName,
@@ -683,19 +789,78 @@ QGroupBox *MainWindow::buildJointGroup(
                     minimumTimeSpinBox_->value());
             });
 
+        auto *adjustSlider =
+            new QSlider(
+                Qt::Horizontal,
+                groupBox);
+
+        // Select a relative joint movement from -Bước to +Bước.
+        // The command is sent only when the mouse is released.
+        const int initialSpan =
+            static_cast<int>(jointStepSpinBox_->value() * 100.0);
+        adjustSlider->setRange(-initialSpan, initialSpan);
+        adjustSlider->setValue(0);
+        adjustSlider->setPageStep(100);
+        adjustSlider->setTickInterval(3000);
+        adjustSlider->setTickPosition(QSlider::TicksBelow);
+        adjustSlider->setMinimumWidth(150);
+        adjustSlider->setProperty("confirmedDegrees", 0.0);
+        adjustSlider->setToolTip(
+            QStringLiteral("Kéo và nhả để điều chỉnh từ -Bước đến +Bước."));
+
+        connect(
+            adjustSlider,
+            &QSlider::sliderReleased,
+            this,
+            [this, groupName, index, adjustSlider]()
+            {
+                const int sliderValue = adjustSlider->value();
+
+                const double targetDegrees =
+                    static_cast<double>(sliderValue) / 100.0;
+                const double confirmedDegrees =
+                    adjustSlider->property("confirmedDegrees").toDouble();
+                const double deltaDegrees =
+                    targetDegrees - confirmedDegrees;
+
+                if (deltaDegrees == 0.0)
+                {
+                    return;
+                }
+
+                controller_->nudgeJoint(
+                    groupName,
+                    index,
+                    degreesToRadians(deltaDegrees),
+                    minimumTimeSpinBox_->value());
+            });
+
+        // Keep the old controls out of the layout while preserving their
+        // existing objects/connections for compatibility with this UI code.
+        minusButton->hide();
+        plusButton->hide();
+
         const int row = index + 1;
 
         layout->addWidget(nameLabel, row, 0);
         layout->addWidget(valueLabel, row, 1);
-        layout->addWidget(minusButton, row, 2);
-        layout->addWidget(plusButton, row, 3);
+        layout->addWidget(adjustSlider, row, 2, 1, 2);
 
         labels.push_back(valueLabel);
+        sliders.push_back(adjustSlider);
     }
+
+    // Keep short groups (e.g. Head) aligned to the top when the adjacent
+    // group is taller.  The remaining height is reserved below the rows.
+    layout->setRowStretch(jointCount + 1, 1);
 
     jointValueLabels_.insert(
         groupName,
         labels);
+
+    jointSliders_.insert(
+        groupName,
+        sliders);
 
     return groupBox;
 }
@@ -725,6 +890,17 @@ void MainWindow::connectSignals()
         &QPushButton::clicked,
         controller_,
         &RobotController::ping);
+
+    connect(
+        logButton_,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+            logWindow_->show();
+            logWindow_->raise();
+            logWindow_->activateWindow();
+        });
 
     connect(
         prepareButton_,
@@ -905,7 +1081,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("set_ready_pose"),
-                QStringLiteral("Set Ready"),
+                QStringLiteral("Set Pose"),
                 minimumTimeSpinBox_->value());
         });
 
@@ -917,7 +1093,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("ready_pose"),
-                QStringLiteral("Go Ready"),
+                QStringLiteral("Go Pose"),
                 minimumTimeSpinBox_->value());
         });
 
@@ -929,7 +1105,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("clear_ready_pose"),
-                QStringLiteral("Clear Ready"),
+                QStringLiteral("Clear Pose"),
                 minimumTimeSpinBox_->value());
         });
 
@@ -972,6 +1148,7 @@ void MainWindow::connectSignals()
 
             if (operationName == QStringLiteral("Đọc trạng thái"))
             {
+                updateRobotStatus(response);
                 appendLog(compactStatusText(response));
                 return;
             }
@@ -1004,6 +1181,32 @@ void MainWindow::applyControllerState(
         QStringLiteral("State: %1")
             .arg(stateName));
 
+    robotControllerStateValueLabel_->setText(stateName);
+    robotReadyValueLabel_->setText(
+        stateName == QStringLiteral("Ready")
+            ? QStringLiteral("Có")
+            : QStringLiteral("Không"));
+    robotReadyValueLabel_->setStyleSheet(
+        stateName == QStringLiteral("Ready")
+            ? QStringLiteral("color:#167a35;font-weight:600;")
+            : QStringLiteral("color:#666666;font-weight:600;"));
+
+    robotConnectionValueLabel_->setText(
+        connected
+            ? QStringLiteral("Đã kết nối")
+            : QStringLiteral("Chưa kết nối"));
+    robotConnectionValueLabel_->setStyleSheet(
+        connected
+            ? QStringLiteral("color:#167a35;font-weight:600;")
+            : QStringLiteral("color:#a32121;font-weight:600;"));
+
+    if (!connected)
+    {
+        robotBridgeStateValueLabel_->setText(QStringLiteral("—"));
+        robotLastUpdateValueLabel_->setText(QStringLiteral("—"));
+        robotMessageValueLabel_->setText(QStringLiteral("—"));
+    }
+
     connectionStatusLabel_->setText(
         connected
             ? QStringLiteral("Kết nối: Đã kết nối bridge")
@@ -1016,9 +1219,6 @@ void MainWindow::applyControllerState(
 
     pingButton_->setEnabled(connected);
 
-    prepareButton_->setEnabled(
-        connected && canChangeSystemConfiguration && !busy);
-
     updateSystemSwitchAvailability();
 
     cancelButton_->setEnabled(connected);
@@ -1026,8 +1226,13 @@ void MainWindow::applyControllerState(
     driveGroup_->setEnabled(
         connected && canDrive && !busy);
 
-    upperBodyContent_->setEnabled(
-        connected && canControlJoints && !busy);
+    const bool robotReady =
+        connected
+        && stateName == QStringLiteral("Ready")
+        && canControlJoints
+        && !busy;
+
+    upperBodyContent_->setEnabled(robotReady);
 
     tabWidget_->setEnabled(connected);
 }
@@ -1053,6 +1258,17 @@ void MainWindow::applySystemConfiguration(
     servoSwitch_->blockSignals(false);
     streamSwitch_->blockSignals(false);
 
+    robotPowerValueLabel_->setText(
+        powerEnabled ? QStringLiteral("Bật") : QStringLiteral("Tắt"));
+    robotServoValueLabel_->setText(
+        powerEnabled && servoEnabled
+            ? QStringLiteral("Bật")
+            : QStringLiteral("Tắt"));
+    robotStreamValueLabel_->setText(
+        powerEnabled && streamEnabled
+            ? QStringLiteral("Bật")
+            : QStringLiteral("Tắt"));
+
     updateSystemSwitchAvailability();
 }
 
@@ -1062,6 +1278,9 @@ void MainWindow::updateSystemSwitchAvailability()
         controllerConnected_
         && canChangeSystemConfiguration_
         && !controllerBusy_;
+
+    prepareButton_->setEnabled(
+        configurationAvailable);
 
     powerSwitch_->setEnabled(configurationAvailable);
     servoSwitch_->setEnabled(
@@ -1080,6 +1299,97 @@ void MainWindow::appendLog(
     logTextEdit_->append(
         QStringLiteral("[%1] %2")
             .arg(time, message));
+}
+
+void MainWindow::updateRobotStatus(
+    const QJsonObject &response)
+{
+    const QJsonObject status =
+        response.value(QStringLiteral("status")).toObject();
+
+    const auto setTextValue =
+        [&response, &status](
+            QLabel *label,
+            const QStringList &keys)
+        {
+            const QJsonValue value =
+                findStatusValue(response, status, keys);
+
+            label->setText(
+                value.isUndefined()
+                    ? QStringLiteral("—")
+                    : statusValueText(value));
+        };
+
+    const auto setBooleanValue =
+        [&response, &status](
+            QLabel *label,
+            const QStringList &keys,
+            const QString &enabledText,
+            const QString &disabledText)
+        {
+            const QJsonValue value =
+                findStatusValue(response, status, keys);
+
+            if (!value.isBool())
+            {
+                label->setText(QStringLiteral("—"));
+                return;
+            }
+
+            label->setText(
+                value.toBool() ? enabledText : disabledText);
+        };
+
+    setTextValue(
+        robotBridgeStateValueLabel_,
+        {
+            QStringLiteral("state"),
+            QStringLiteral("robot_state"),
+            QStringLiteral("control_state")
+        });
+
+    setBooleanValue(
+        robotPowerValueLabel_,
+        {
+            QStringLiteral("power"),
+            QStringLiteral("power_on"),
+            QStringLiteral("powered")
+        },
+        QStringLiteral("Bật"),
+        QStringLiteral("Tắt"));
+
+    setBooleanValue(
+        robotServoValueLabel_,
+        {
+            QStringLiteral("servo"),
+            QStringLiteral("servo_on"),
+            QStringLiteral("servo_enabled")
+        },
+        QStringLiteral("Bật"),
+        QStringLiteral("Tắt"));
+
+    setBooleanValue(
+        robotStreamValueLabel_,
+        {
+            QStringLiteral("stream"),
+            QStringLiteral("stream_on"),
+            QStringLiteral("streaming"),
+            QStringLiteral("stream_enabled")
+        },
+        QStringLiteral("Bật"),
+        QStringLiteral("Tắt"));
+
+    setTextValue(
+        robotMessageValueLabel_,
+        {
+            QStringLiteral("message"),
+            QStringLiteral("error")
+        });
+
+    robotLastUpdateValueLabel_->setText(
+        QDateTime::currentDateTime()
+            .toString(QStringLiteral("HH:mm:ss")));
 }
 
 void MainWindow::updateJointDisplay(
@@ -1157,20 +1467,47 @@ void MainWindow::updateJointDisplay(
 
         QVector<QLabel *> &labels = it.value();
 
+        auto sliderIt =
+            jointSliders_.find(groupName);
+
+        if (sliderIt == jointSliders_.end())
+        {
+            continue;
+        }
+
+        QVector<QSlider *> &sliders = sliderIt.value();
+
         const int count =
             qMin(
                 static_cast<int>(positions.size()),
-                static_cast<int>(labels.size()));
+                qMin(
+                    static_cast<int>(labels.size()),
+                    static_cast<int>(sliders.size())));
 
         for (int index = 0; index < count; ++index)
         {
+            const double degrees =
+                radiansToDegrees(
+                    positions.at(index).toDouble());
+
             labels[index]->setText(
-                QStringLiteral("%1 rad")
+                QStringLiteral("%1 \u00B0")
                     .arg(
-                        positions.at(index).toDouble(),
+                        degrees,
                         0,
                         'f',
-                        3));
+                        2));
+
+            sliders[index]->setProperty(
+                "confirmedDegrees",
+                degrees);
+
+            const int center =
+                static_cast<int>(degrees * 100.0);
+            const int span =
+                static_cast<int>(jointStepSpinBox_->value() * 100.0);
+            sliders[index]->setRange(center - span, center + span);
+            sliders[index]->setValue(center);
         }
     }
 }
@@ -1178,6 +1515,7 @@ void MainWindow::updateJointDisplay(
 void MainWindow::closeEvent(
     QCloseEvent *event)
 {
+    logWindow_->close();
     controller_->stopDrive();
     controller_->disconnectFromBridge();
 

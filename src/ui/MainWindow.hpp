@@ -7,10 +7,12 @@
 #include <QVector>
 
 class QCloseEvent;
+class QDialog;
 class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
 class QPushButton;
+class QSlider;
 class QTabWidget;
 class QTextEdit;
 class QWidget;
@@ -62,6 +64,9 @@ private:
     void updateJointDisplay(
         const QJsonObject &response);
 
+    void updateRobotStatus(
+        const QJsonObject &response);
+
     RobotController *controller_{nullptr};
 
     QLabel *connectionStatusLabel_{nullptr};
@@ -69,6 +74,7 @@ private:
 
     QPushButton *connectButton_{nullptr};
     QPushButton *pingButton_{nullptr};
+    QPushButton *logButton_{nullptr};
 
     QPushButton *prepareButton_{nullptr};
     ToggleSwitch *powerSwitch_{nullptr};
@@ -95,11 +101,24 @@ private:
 
     QGroupBox *systemGroup_{nullptr};
     QGroupBox *driveGroup_{nullptr};
+    QGroupBox *robotStatusGroup_{nullptr};
     QWidget *upperBodyContent_{nullptr};
 
+    QLabel *robotConnectionValueLabel_{nullptr};
+    QLabel *robotControllerStateValueLabel_{nullptr};
+    QLabel *robotBridgeStateValueLabel_{nullptr};
+    QLabel *robotReadyValueLabel_{nullptr};
+    QLabel *robotPowerValueLabel_{nullptr};
+    QLabel *robotServoValueLabel_{nullptr};
+    QLabel *robotStreamValueLabel_{nullptr};
+    QLabel *robotLastUpdateValueLabel_{nullptr};
+    QLabel *robotMessageValueLabel_{nullptr};
+
     QHash<QString, QVector<QLabel *>> jointValueLabels_;
+    QHash<QString, QVector<QSlider *>> jointSliders_;
 
     QTabWidget *tabWidget_{nullptr};
+    QDialog *logWindow_{nullptr};
     QTextEdit *logTextEdit_{nullptr};
 
     bool controllerConnected_{false};
