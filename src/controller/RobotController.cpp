@@ -7,33 +7,57 @@
 #include "state/ReadyState.hpp"
 #include "state/RobotState.hpp"
 
-#include <QJsonObject>
 #include <QJsonValue>
-#include <QStringList>
+#include <QTimer>
+#include <QtMath>
 
 namespace
 {
-QJsonValue findSystemStatusValue(
-    const QJsonObject &response,
-    const QStringList &keys)
+QString componentName(RobotComponent component)
 {
-    const QJsonObject status =
-        response.value(QStringLiteral("status")).toObject();
-
-    for (const QString &key : keys)
+    switch (component)
     {
-        if (response.contains(key))
-        {
-            return response.value(key);
-        }
+    case RobotComponent::Power:
+        return QStringLiteral("Power");
+    case RobotComponent::Servo:
+        return QStringLiteral("Servo");
+    case RobotComponent::Stream:
+        return QStringLiteral("Stream");
+    }
 
-        if (status.contains(key))
-        {
-            return status.value(key);
-        }
+    return QStringLiteral("Component");
+}
+
+QString componentCommand(RobotComponent component)
+{
+    switch (component)
+    {
+    case RobotComponent::Power:
+        return QStringLiteral("power");
+    case RobotComponent::Servo:
+        return QStringLiteral("servo");
+    case RobotComponent::Stream:
+        return QStringLiteral("stream");
     }
 
     return {};
+}
+
+QString responseError(const QJsonObject &response)
+{
+    const QJsonValue message = response.value(QStringLiteral("message"));
+    if (message.isString() && !message.toString().isEmpty())
+    {
+        return message.toString();
+    }
+
+    const QJsonValue error = response.value(QStringLiteral("error"));
+    if (error.isString() && !error.toString().isEmpty())
+    {
+        return error.toString();
+    }
+
+    return QStringLiteral("App Bridge rejected the command without an error message");
 }
 }
 
@@ -42,8 +66,13 @@ RobotController::RobotController(QObject *parent)
       client_(new RobotClient(this)),
       state_(std::make_unique<DisconnectedState>())
 {
+    qRegisterMetaType<SystemConfigurationView>();
+
+    monotonicClock_.start();
     velocityTimer_.setInterval(100);
     statusTimer_.setInterval(500);
+    jointStatusTimer_.setInterval(500);
+    healthTimer_.setInterval(100);
 
     connect(
         &velocityTimer_,
@@ -56,6 +85,18 @@ RobotController::RobotController(QObject *parent)
         &QTimer::timeout,
         this,
         &RobotController::requestStatus);
+
+    connect(
+        &jointStatusTimer_,
+        &QTimer::timeout,
+        this,
+        &RobotController::refreshJoints);
+
+    connect(
+        &healthTimer_,
+        &QTimer::timeout,
+        this,
+        &RobotController::checkTimeoutsAndFreshness);
 
     connect(
         client_,
@@ -77,19 +118,26 @@ RobotController::RobotController(QObject *parent)
 
     connect(
         client_,
+        &RobotClient::requestTimedOut,
+        this,
+        &RobotController::handleRequestTimeout);
+
+    connect(
+        client_,
         &RobotClient::clientError,
         this,
         [this](const QString &message)
         {
             emit logMessage(
-                QStringLiteral("Lỗi TCP: %1")
-                    .arg(message));
+                QStringLiteral("TCP error: %1").arg(message));
         });
 }
 
 RobotController::~RobotController() = default;
 
-void RobotController::connectToBridge()
+void RobotController::connectToBridge(
+    const QString &host,
+    quint16 port)
 {
     if (client_->isConnected())
     {
@@ -97,10 +145,10 @@ void RobotController::connectToBridge()
     }
 
     emit logMessage(
-        QStringLiteral(
-            "Đang kết nối 127.0.0.1:8081..."));
-
-    client_->connectToBridge();
+        QStringLiteral("Connecting to App Bridge at %1:%2...")
+            .arg(host)
+            .arg(port));
+    client_->connectToBridge(host, port);
 }
 
 void RobotController::disconnectFromBridge()
@@ -111,125 +159,222 @@ void RobotController::disconnectFromBridge()
 
 void RobotController::ping()
 {
-    sendSimpleInternal(
-        QStringLiteral("ping"),
-        QStringLiteral("Ping"));
+    sendSimpleInternal(QStringLiteral("ping"), QStringLiteral("Ping"));
 }
 
 void RobotController::requestStatus()
 {
-    if (statusRequestPending_)
+    if (!client_->isConnected())
     {
         return;
     }
 
-    statusRequestPending_ =
-        sendSimpleInternal(
-            QStringLiteral("status"),
-            QStringLiteral("Đọc trạng thái"));
+    if (statusRequestPendingId_ != 0)
+    {
+        return;
+    }
+
+    statusRequestPendingId_ = client_->sendCommand(
+        QJsonObject{
+            {QStringLiteral("command"), QStringLiteral("status")}
+        },
+        QStringLiteral("Status"),
+        kCommandTimeoutMs);
+}
+
+void RobotController::forceStatusRefresh()
+{
+    if (!client_->isConnected())
+    {
+        return;
+    }
+
+    if (statusRequestPendingId_ != 0)
+    {
+        immediateStatusRefreshQueued_ = true;
+        return;
+    }
+
+    requestStatus();
+}
+
+void RobotController::extendStatusFreshnessGrace(int durationMs)
+{
+    if (durationMs <= 0)
+    {
+        return;
+    }
+
+    statusFreshnessGraceDeadlineMs_ = qMax(
+        statusFreshnessGraceDeadlineMs_,
+        monotonicClock_.elapsed() + durationMs);
 }
 
 void RobotController::prepareRobot()
 {
-    applyTransition(
-        state_->prepare(*this));
+    applyTransition(state_->prepare(*this));
+}
+
+void RobotController::togglePower()
+{
+    toggleComponent(RobotComponent::Power);
+}
+
+void RobotController::toggleServo()
+{
+    toggleComponent(RobotComponent::Servo);
+}
+
+void RobotController::toggleStream()
+{
+    toggleComponent(RobotComponent::Stream);
 }
 
 void RobotController::setPower(bool enabled)
 {
-    if (!state_->isConnected()
-        || !state_->canChangeSystemConfiguration())
-    {
-        rejectAction(
-            QStringLiteral(
-                "Không thể đổi Power trong trạng thái %1.")
-                .arg(state_->name()));
-        return;
-    }
-
-    if (!enabled)
-    {
-        powerEnabled_ = false;
-        servoEnabled_ = false;
-        streamEnabled_ = false;
-        emitSystemConfiguration();
-
-        // Shut down dependent subsystems before cutting their power source.
-        sendSwitchInternal(
-            QStringLiteral("servo"),
-            false,
-            QStringLiteral("Servo OFF"));
-
-        sendSwitchInternal(
-            QStringLiteral("stream"),
-            false,
-            QStringLiteral("Stream OFF"));
-    }
-
-    sendSwitchInternal(
-        QStringLiteral("power"),
-        enabled,
-        enabled
-            ? QStringLiteral("Power ON")
-            : QStringLiteral("Power OFF"));
+    requestComponentTarget(RobotComponent::Power, enabled);
 }
 
 void RobotController::setServo(bool enabled)
 {
-    if (!state_->isConnected()
-        || !state_->canChangeSystemConfiguration())
-    {
-        rejectAction(
-            QStringLiteral(
-                "Không thể đổi Servo trong trạng thái %1.")
-                .arg(state_->name()));
-        return;
-    }
-
-    if (enabled && !powerEnabled_)
-    {
-        rejectAction(
-            QStringLiteral(
-                "Phải bật Power trước khi bật Servo."));
-        emitSystemConfiguration();
-        return;
-    }
-
-    sendSwitchInternal(
-        QStringLiteral("servo"),
-        enabled,
-        enabled
-            ? QStringLiteral("Servo ON")
-            : QStringLiteral("Servo OFF"));
+    requestComponentTarget(RobotComponent::Servo, enabled);
 }
 
 void RobotController::setStream(bool enabled)
 {
-    if (!state_->isConnected()
-        || !state_->canChangeSystemConfiguration())
-    {
-        rejectAction(
-            QStringLiteral(
-                "Không thể đổi Stream trong trạng thái %1.")
-                .arg(state_->name()));
-        return;
-    }
+    requestComponentTarget(RobotComponent::Stream, enabled);
+}
 
-    if (enabled && !powerEnabled_)
+void RobotController::toggleComponent(RobotComponent component)
+{
+    const ComponentRuntime &model = runtime(component);
+
+    if (!isConfirmedComponentState(model.confirmed))
     {
         rejectAction(
-            QStringLiteral(
-                "Phải bật Power trước khi bật Stream."));
+            QStringLiteral("%1 state is UNKNOWN; wait for a canonical status response.")
+                .arg(componentName(component)));
+        forceStatusRefresh();
         emitSystemConfiguration();
         return;
     }
 
-    sendSwitchInternal(
-        QStringLiteral("stream"),
-        enabled,
-        enabled
-            ? QStringLiteral("Stream ON")
-            : QStringLiteral("Stream OFF"));
+    requestComponentTarget(
+        component,
+        model.confirmed == ComponentState::Off);
+}
+
+bool RobotController::requestComponentTarget(
+    RobotComponent component,
+    bool enabled,
+    bool preparationStep)
+{
+    if (!state_->isConnected()
+        || (!preparationStep
+            && !state_->canChangeSystemConfiguration()))
+    {
+        rejectAction(
+            QStringLiteral("Cannot change %1 while controller state is %2.")
+                .arg(componentName(component), state_->name()));
+        emitSystemConfiguration();
+        return false;
+    }
+
+    ComponentRuntime &model = runtime(component);
+
+    if (model.localPending || isPendingComponentState(model.remoteState))
+    {
+        rejectAction(
+            QStringLiteral("%1 already has a pending transition.")
+                .arg(componentName(component)));
+        emitSystemConfiguration();
+        return false;
+    }
+
+    if (!isConfirmedComponentState(model.confirmed))
+    {
+        rejectAction(
+            QStringLiteral("%1 state is UNKNOWN; refusing to guess a target.")
+                .arg(componentName(component)));
+        forceStatusRefresh();
+        emitSystemConfiguration();
+        return false;
+    }
+
+    if ((component == RobotComponent::Servo
+         || component == RobotComponent::Stream)
+        && enabled
+        && !componentIsConfirmedOn(RobotComponent::Power))
+    {
+        rejectAction(
+            QStringLiteral("Power must be confirmed ON before enabling %1.")
+                .arg(componentName(component)));
+        emitSystemConfiguration();
+        return false;
+    }
+
+    if (component == RobotComponent::Power
+        && (servo_.localPending || stream_.localPending
+            || isPendingComponentState(servo_.remoteState)
+            || isPendingComponentState(stream_.remoteState)))
+    {
+        rejectAction(
+            QStringLiteral("Power cannot change while Servo or Stream is pending."));
+        emitSystemConfiguration();
+        return false;
+    }
+
+    if ((component == RobotComponent::Servo
+         || component == RobotComponent::Stream)
+        && (power_.localPending
+            || isPendingComponentState(power_.remoteState)))
+    {
+        rejectAction(
+            QStringLiteral("%1 cannot change while Power is pending.")
+                .arg(componentName(component)));
+        emitSystemConfiguration();
+        return false;
+    }
+
+    const ComponentState target =
+        enabled ? ComponentState::On : ComponentState::Off;
+    if (model.confirmed == target)
+    {
+        return true;
+    }
+
+    const QString operationName =
+        QStringLiteral("%1 %2")
+            .arg(
+                componentName(component),
+                enabled ? QStringLiteral("ON") : QStringLiteral("OFF"));
+
+    const quint64 requestId = client_->sendCommand(
+        QJsonObject{
+            {QStringLiteral("command"), componentCommand(component)},
+            {QStringLiteral("enabled"), enabled}
+        },
+        operationName,
+        kCommandTimeoutMs);
+
+    if (requestId == 0)
+    {
+        emitSystemConfiguration();
+        return false;
+    }
+
+    model.localPending = true;
+    model.targetEnabled = enabled;
+    model.commandRequestId = requestId;
+    model.commandTimedOut = false;
+    model.confirmationDeadlineMs =
+        monotonicClock_.elapsed() + kConfirmationTimeoutMs;
+
+    emit logMessage(
+        QStringLiteral("%1 sent; waiting for status.components confirmation.")
+            .arg(operationName));
+    emitSystemConfiguration();
+    return true;
 }
 
 void RobotController::cancelControl()
@@ -242,8 +387,8 @@ void RobotController::cancelControl()
             QStringLiteral("cancel"),
             QStringLiteral("Cancel control"));
 
-        transitionTo(
-            std::make_unique<ConnectedState>());
+        preparationRequested_ = false;
+        transitionTo(std::make_unique<ConnectedState>());
     }
 }
 
@@ -253,32 +398,25 @@ void RobotController::startDrive(
     double angularZ)
 {
     applyTransition(
-        state_->startDrive(
-            *this,
-            linearX,
-            linearY,
-            angularZ));
+        state_->startDrive(*this, linearX, linearY, angularZ));
 }
 
 void RobotController::stopDrive()
 {
-    applyTransition(
-        state_->stopDrive(*this));
+    applyTransition(state_->stopDrive(*this));
 }
 
 void RobotController::refreshJoints()
 {
-    if (!state_->isConnected())
+    if (!client_->isConnected() || jointStatusRequestPendingId_ != 0)
     {
-        rejectAction(
-            QStringLiteral(
-                "Chưa kết nối bridge."));
         return;
     }
 
-    sendSimpleInternal(
-        QStringLiteral("joints_status"),
-        QStringLiteral("Joints status"));
+    jointStatusRequestPendingId_ = client_->sendCommand(
+        QJsonObject{{QStringLiteral("command"), QStringLiteral("joints_status")}},
+        QStringLiteral("Joints status"),
+        kCommandTimeoutMs);
 }
 
 void RobotController::nudgeJoint(
@@ -287,6 +425,13 @@ void RobotController::nudgeJoint(
     double delta,
     double minimumTime)
 {
+    if (!client_->isConnected() || !state_->canControlJoints())
+    {
+        reportJointMotionFailure(QStringLiteral(
+            "Robot chưa sẵn sàng hoặc đang thực hiện một lệnh khác. Không thể thay đổi góc khớp."));
+        return;
+    }
+
     applyTransition(
         state_->nudgeJoint(
             *this,
@@ -314,32 +459,97 @@ bool RobotController::sendSimpleInternal(
     const QString &operationName)
 {
     return client_->sendCommand(
-        QJsonObject{
-            {
-                QStringLiteral("command"),
-                command
-            }
-        },
-        operationName);
+               QJsonObject{
+                   {QStringLiteral("command"), command}
+               },
+               operationName,
+               kCommandTimeoutMs)
+        != 0;
 }
 
-bool RobotController::sendSwitchInternal(
-    const QString &command,
-    bool enabled,
-    const QString &operationName)
+bool RobotController::beginPreparationInternal()
 {
-    return client_->sendCommand(
-        QJsonObject{
-            {
-                QStringLiteral("command"),
-                command
-            },
-            {
-                QStringLiteral("enabled"),
-                enabled
-            }
-        },
-        operationName);
+    if (!state_->isConnected())
+    {
+        rejectAction(QStringLiteral("Not connected to App Bridge."));
+        return false;
+    }
+
+    if (!isConfirmedComponentState(power_.confirmed)
+        || !isConfirmedComponentState(servo_.confirmed)
+        || !isConfirmedComponentState(stream_.confirmed))
+    {
+        rejectAction(
+            QStringLiteral("Cannot prepare until Power, Servo, and Stream are known."));
+        forceStatusRefresh();
+        return false;
+    }
+
+    preparationRequested_ = true;
+    QTimer::singleShot(0, this, &RobotController::continuePreparation);
+    return true;
+}
+
+void RobotController::continuePreparation()
+{
+    if (!preparationRequested_ || !state_->isConnected())
+    {
+        return;
+    }
+
+    if (anyComponentPending())
+    {
+        forceStatusRefresh();
+        return;
+    }
+
+    if (!componentIsConfirmedOn(RobotComponent::Power))
+    {
+        if (!requestComponentTarget(RobotComponent::Power, true, true))
+        {
+            abortPreparation(QStringLiteral("Power could not be enabled."));
+        }
+        return;
+    }
+
+    if (!componentIsConfirmedOn(RobotComponent::Servo))
+    {
+        if (!requestComponentTarget(RobotComponent::Servo, true, true))
+        {
+            abortPreparation(QStringLiteral("Servo could not be enabled."));
+        }
+        return;
+    }
+
+    if (!componentIsConfirmedOn(RobotComponent::Stream))
+    {
+        if (!requestComponentTarget(RobotComponent::Stream, true, true))
+        {
+            abortPreparation(QStringLiteral("Stream could not be enabled."));
+        }
+        return;
+    }
+
+    preparationRequested_ = false;
+    appendStateLog(
+        QStringLiteral("Preparation confirmed by status.components; robot is Ready."));
+    transitionTo(std::make_unique<ReadyState>());
+}
+
+void RobotController::abortPreparation(const QString &reason)
+{
+    if (!preparationRequested_)
+    {
+        return;
+    }
+
+    preparationRequested_ = false;
+    emit logMessage(QStringLiteral("Preparation stopped: %1").arg(reason));
+
+    if (state_->name() == QStringLiteral("Preparing"))
+    {
+        transitionTo(std::make_unique<ConnectedState>());
+    }
 }
 
 void RobotController::startVelocityInternal(
@@ -352,7 +562,6 @@ void RobotController::startVelocityInternal(
     angularZ_ = angularZ;
 
     sendVelocityTick();
-
     if (!velocityTimer_.isActive())
     {
         velocityTimer_.start();
@@ -361,91 +570,107 @@ void RobotController::startVelocityInternal(
 
 void RobotController::stopVelocityInternal()
 {
-    velocityTimer_.stop();
+    const bool wasDriving =
+        velocityTimer_.isActive()
+        || linearX_ != 0.0
+        || linearY_ != 0.0
+        || angularZ_ != 0.0;
 
+    velocityTimer_.stop();
     linearX_ = 0.0;
     linearY_ = 0.0;
     angularZ_ = 0.0;
 
-    if (client_->isConnected())
+    if (client_->isConnected() && wasDriving)
     {
         sendSimpleInternal(
             QStringLiteral("stop"),
-            QStringLiteral("Dừng đế"));
+            QStringLiteral("Stop base"));
     }
 }
 
-bool RobotController::sendJointNudgeInternal(
+quint64 RobotController::sendJointNudgeInternal(
     const QString &groupName,
     int jointIndex,
     double delta,
     double minimumTime)
 {
-    return client_->sendCommand(
+    const int timeoutMs = qMax(
+        kCommandTimeoutMs,
+        static_cast<int>(qCeil(qMax(0.0, minimumTime) * 1000.0))
+            + 2000);
+
+    const quint64 requestId = client_->sendCommand(
         QJsonObject{
-            {
-                QStringLiteral("command"),
-                QStringLiteral("joint_nudge")
-            },
-            {
-                QStringLiteral("group"),
-                groupName
-            },
-            {
-                QStringLiteral("joint_index"),
-                jointIndex
-            },
-            {
-                QStringLiteral("delta"),
-                delta
-            },
-            {
-                QStringLiteral("minimum_time"),
-                minimumTime
-            }
+            {QStringLiteral("command"), QStringLiteral("joint_nudge")},
+            {QStringLiteral("group"), groupName},
+            {QStringLiteral("joint_index"), jointIndex},
+            {QStringLiteral("delta"), delta},
+            {QStringLiteral("minimum_time"), minimumTime}
         },
-        QStringLiteral("Joint nudge"));
+        QStringLiteral("Joint nudge"),
+        timeoutMs);
+
+    if (requestId != 0)
+    {
+        // The bridge may serialize Robot API calls and therefore be unable to
+        // answer status polling while this long-running motion is executing.
+        // Keep the last canonical status only for the bounded request window;
+        // a real status response can still update it at any time.
+        extendStatusFreshnessGrace(
+            timeoutMs + kPostMotionStatusGraceMs);
+    }
+
+    return requestId;
 }
 
-bool RobotController::sendPoseInternal(
+quint64 RobotController::sendPoseInternal(
     const QString &command,
     const QString &operationName,
     double minimumTime)
 {
-    return client_->sendCommand(
+    const int timeoutMs = qMax(
+        kCommandTimeoutMs,
+        static_cast<int>(qCeil(qMax(0.0, minimumTime) * 1000.0))
+            + 2000);
+
+    const quint64 requestId = client_->sendCommand(
         QJsonObject{
-            {
-                QStringLiteral("command"),
-                command
-            },
-            {
-                QStringLiteral("minimum_time"),
-                minimumTime
-            }
+            {QStringLiteral("command"), command},
+            {QStringLiteral("minimum_time"), minimumTime}
         },
-        operationName);
+        operationName,
+        timeoutMs);
+
+    if (requestId != 0)
+    {
+        extendStatusFreshnessGrace(
+            timeoutMs + kPostMotionStatusGraceMs);
+    }
+
+    return requestId;
 }
 
 void RobotController::scheduleJointRefresh()
 {
-    QTimer::singleShot(
-        300,
-        this,
-        &RobotController::refreshJoints);
+    QTimer::singleShot(300, this, &RobotController::refreshJoints);
 }
 
-void RobotController::rejectAction(
-    const QString &reason)
+void RobotController::rejectAction(const QString &reason)
 {
-    emit logMessage(
-        QStringLiteral("Từ chối lệnh: %1")
-            .arg(reason));
+    emit logMessage(QStringLiteral("Command rejected: %1").arg(reason));
 }
 
-void RobotController::appendStateLog(
-    const QString &message)
+void RobotController::appendStateLog(const QString &message)
 {
     emit logMessage(message);
+}
+
+void RobotController::reportJointMotionFailure(const QString &message)
+{
+    emit logMessage(message);
+    emit jointMotionFailed(message);
+    scheduleJointRefresh();
 }
 
 void RobotController::sendVelocityTick()
@@ -458,174 +683,544 @@ void RobotController::sendVelocityTick()
 
     client_->sendCommand(
         QJsonObject{
-            {
-                QStringLiteral("command"),
-                QStringLiteral("velocity")
-            },
-            {
-                QStringLiteral("linear_x"),
-                linearX_
-            },
-            {
-                QStringLiteral("linear_y"),
-                linearY_
-            },
-            {
-                QStringLiteral("angular_z"),
-                angularZ_
-            }
+            {QStringLiteral("command"), QStringLiteral("velocity")},
+            {QStringLiteral("linear_x"), linearX_},
+            {QStringLiteral("linear_y"), linearY_},
+            {QStringLiteral("angular_z"), angularZ_}
         },
-        QStringLiteral("Velocity"));
+        QStringLiteral("Velocity"),
+        0);
 }
 
 void RobotController::handleBridgeConnected()
 {
-    transitionTo(
-        std::make_unique<ConnectedState>());
+    statusRequestPendingId_ = 0;
+    jointStatusRequestPendingId_ = 0;
+    latestAppliedJointStatusRequestId_ = 0;
+    latestAppliedStatusRequestId_ = 0;
+    immediateStatusRefreshQueued_ = false;
+    lastValidStatusMs_ = -1;
+    statusFreshnessGraceDeadlineMs_ = 0;
+    statusMarkedStale_ = true;
+    preparationRequested_ = false;
+    markAllComponentsUnknown(true);
 
+    transitionTo(std::make_unique<ConnectedState>());
     requestStatus();
+    refreshJoints();
     statusTimer_.start();
+    jointStatusTimer_.start();
+    healthTimer_.start();
 
-    emit logMessage(
-        QStringLiteral(
-            "Đã kết nối C++ ROS 2 bridge."));
+    emit logMessage(QStringLiteral("Connected to App Bridge."));
 }
 
 void RobotController::handleBridgeDisconnected()
 {
+    if (state_->name() == QStringLiteral("JointBusy"))
+    {
+        reportJointMotionFailure(QStringLiteral(
+            "Mất kết nối App Bridge trong khi di chuyển khớp; chưa xác nhận được kết quả."));
+    }
     velocityTimer_.stop();
     statusTimer_.stop();
-    statusRequestPending_ = false;
+    jointStatusTimer_.stop();
+    healthTimer_.stop();
+    statusRequestPendingId_ = 0;
+    jointStatusRequestPendingId_ = 0;
+    immediateStatusRefreshQueued_ = false;
+    preparationRequested_ = false;
+    lastValidStatusMs_ = -1;
+    statusFreshnessGraceDeadlineMs_ = 0;
+    statusMarkedStale_ = true;
 
-    powerEnabled_ = false;
-    servoEnabled_ = false;
-    streamEnabled_ = false;
-    emitSystemConfiguration();
-
-    transitionTo(
-        std::make_unique<DisconnectedState>());
-
-    emit logMessage(
-        QStringLiteral(
-            "Đã ngắt kết nối bridge."));
+    markAllComponentsUnknown(true);
+    transitionTo(std::make_unique<DisconnectedState>());
+    emit logMessage(QStringLiteral("Disconnected from App Bridge."));
 }
 
 void RobotController::handleResponse(
+    quint64 requestId,
     const QString &operationName,
     const QJsonObject &response)
 {
-    if (operationName == QStringLiteral("Đọc trạng thái"))
+    if (operationName == QStringLiteral("Status"))
     {
-        statusRequestPending_ = false;
+        if (requestId == statusRequestPendingId_)
+        {
+            statusRequestPendingId_ = 0;
+        }
+
+        if (requestId == 0 || requestId >= latestAppliedStatusRequestId_)
+        {
+            applySystemStatus(requestId, response);
+            // Component confirmation must be applied before deciding whether
+            // the controller itself may enter Ready.
+            updateStateFromStatus(response);
+        }
+    }
+    else
+    {
+        finishComponentCommand(requestId, response);
+
+        if (operationName == QStringLiteral("Joints status"))
+        {
+            if (requestId == jointStatusRequestPendingId_)
+            {
+                jointStatusRequestPendingId_ = 0;
+            }
+
+            if ((requestId == 0
+                 || requestId > latestAppliedJointStatusRequestId_)
+                && (!response.contains(QStringLiteral("success"))
+                    || response.value(QStringLiteral("success")).toBool(false)))
+            {
+                if (requestId != 0)
+                {
+                    latestAppliedJointStatusRequestId_ = requestId;
+                }
+                emit jointStatusReceived(response);
+            }
+        }
+
+        const bool wasBusy = state_->isBusy();
+        std::unique_ptr<RobotState> nextState =
+            state_->onResponse(
+                *this,
+                requestId,
+                operationName,
+                response);
+        const bool motionFinished = wasBusy && nextState != nullptr;
+
+        applyTransition(std::move(nextState));
+
+        if (motionFinished)
+        {
+            extendStatusFreshnessGrace(kPostMotionStatusGraceMs);
+            forceStatusRefresh();
+        }
     }
 
-    emit responseReceived(
-        operationName,
-        response);
+    emit responseReceived(operationName, response);
 
+    if (operationName == QStringLiteral("Status")
+        && immediateStatusRefreshQueued_)
+    {
+        immediateStatusRefreshQueued_ = false;
+        QTimer::singleShot(0, this, &RobotController::requestStatus);
+    }
+}
+
+void RobotController::finishComponentCommand(
+    quint64 requestId,
+    const QJsonObject &response)
+{
+    const QList<RobotComponent> components{
+        RobotComponent::Power,
+        RobotComponent::Servo,
+        RobotComponent::Stream
+    };
+
+    for (RobotComponent component : components)
+    {
+        ComponentRuntime &model = runtime(component);
+        if (!model.localPending || model.commandRequestId != requestId)
+        {
+            continue;
+        }
+
+        const bool success =
+            response.value(QStringLiteral("success")).isBool()
+            && response.value(QStringLiteral("success")).toBool();
+
+        if (!success)
+        {
+            model.localPending = false;
+            model.commandRequestId = 0;
+            model.confirmationDeadlineMs = 0;
+            emit logMessage(
+                QStringLiteral("%1 command failed: %2")
+                    .arg(componentName(component), responseError(response)));
+            emitSystemConfiguration();
+
+            if (preparationRequested_)
+            {
+                abortPreparation(
+                    QStringLiteral("%1 command failed: %2")
+                        .arg(componentName(component), responseError(response)));
+            }
+        }
+        else
+        {
+            model.commandRequestId = 0;
+            model.confirmationDeadlineMs =
+                monotonicClock_.elapsed() + kConfirmationTimeoutMs;
+            emit logMessage(
+                QStringLiteral("%1 command accepted; still waiting for canonical status.")
+                    .arg(componentName(component)));
+        }
+
+        forceStatusRefresh();
+        return;
+    }
+}
+
+void RobotController::handleRequestTimeout(
+    quint64 requestId,
+    const QString &operationName)
+{
     if (operationName == QStringLiteral("Joints status"))
     {
-        emit jointStatusReceived(response);
+        latestAppliedJointStatusRequestId_ = qMax(
+            latestAppliedJointStatusRequestId_, requestId);
+        if (requestId == jointStatusRequestPendingId_)
+        {
+            jointStatusRequestPendingId_ = 0;
+        }
+        // Retry on the next polling tick, not recursively on every timeout.
+        return;
     }
 
-    applyTransition(
-        state_->onResponse(
+    if (requestId == statusRequestPendingId_)
+    {
+        statusRequestPendingId_ = 0;
+        emit logMessage(QStringLiteral("Status request timed out."));
+        forceStatusRefresh();
+        return;
+    }
+
+    const QList<RobotComponent> components{
+        RobotComponent::Power,
+        RobotComponent::Servo,
+        RobotComponent::Stream
+    };
+
+    for (RobotComponent component : components)
+    {
+        ComponentRuntime &model = runtime(component);
+        if (!model.localPending || model.commandRequestId != requestId)
+        {
+            continue;
+        }
+
+        model.commandTimedOut = true;
+        emit logMessage(
+            QStringLiteral("%1 command acknowledgement timed out; status confirmation is still pending.")
+                .arg(componentName(component)));
+        forceStatusRefresh();
+        return;
+    }
+
+    std::unique_ptr<RobotState> timeoutTransition =
+        state_->onRequestTimeout(
             *this,
-            operationName,
-            response));
+            requestId,
+            operationName);
 
-    if (
-        operationName == QStringLiteral("Đọc trạng thái")
-        && !state_->isBusy()
-        && state_->name() != QStringLiteral("Driving"))
+    if (timeoutTransition)
     {
-        updateStateFromStatus(response);
+        extendStatusFreshnessGrace(kPostMotionStatusGraceMs);
+        transitionTo(std::move(timeoutTransition));
+        forceStatusRefresh();
+        return;
     }
 
-    if (operationName == QStringLiteral("Đọc trạng thái"))
+    emit logMessage(
+        QStringLiteral("%1 request timed out.").arg(operationName));
+}
+
+void RobotController::applySystemStatus(
+    quint64 requestId,
+    const QJsonObject &response)
+{
+    if (requestId != 0 && requestId < latestAppliedStatusRequestId_)
     {
-        updateSystemConfigurationFromStatus(response);
+        return;
     }
 
-    const bool operationSucceeded =
-        response.value(
-            QStringLiteral("success")).toBool(false);
-
-    const bool isSwitchOperation =
-        operationName == QStringLiteral("Power ON")
-        || operationName == QStringLiteral("Power OFF")
-        || operationName == QStringLiteral("Servo ON")
-        || operationName == QStringLiteral("Servo OFF")
-        || operationName == QStringLiteral("Stream ON")
-        || operationName == QStringLiteral("Stream OFF");
-
-    if (operationSucceeded)
+    const ParsedSystemStatus parsed = parseSystemStatus(response);
+    if (!parsed.accepted)
     {
-        if (operationName == QStringLiteral("Power ON"))
+        return;
+    }
+
+    if (requestId != 0)
+    {
+        latestAppliedStatusRequestId_ = requestId;
+    }
+
+    lastValidStatusMs_ = monotonicClock_.elapsed();
+    if (!state_->isBusy())
+    {
+        statusFreshnessGraceDeadlineMs_ = 0;
+    }
+    statusMarkedStale_ = false;
+
+    if (!parsed.bridgeConnected)
+    {
+        markAllComponentsUnknown(true);
+        if (state_->name() == QStringLiteral("Ready"))
         {
-            powerEnabled_ = true;
-            emitSystemConfiguration();
+            transitionTo(std::make_unique<ConnectedState>());
         }
-        else if (operationName == QStringLiteral("Power OFF"))
+        abortPreparation(
+            QStringLiteral("App Bridge reports that Robot API is disconnected."));
+        return;
+    }
+
+    applyParsedComponent(RobotComponent::Power, parsed.power);
+    applyParsedComponent(RobotComponent::Servo, parsed.servo);
+    applyParsedComponent(RobotComponent::Stream, parsed.stream);
+    emitSystemConfiguration();
+
+    if (state_->name() == QStringLiteral("Ready")
+        && (!componentIsConfirmedOn(RobotComponent::Power)
+            || !componentIsConfirmedOn(RobotComponent::Servo)
+            || !componentIsConfirmedOn(RobotComponent::Stream)
+            || anyComponentPending()))
+    {
+        transitionTo(std::make_unique<ConnectedState>());
+    }
+
+    if (preparationRequested_)
+    {
+        continuePreparation();
+    }
+}
+
+void RobotController::applyParsedComponent(
+    RobotComponent component,
+    const ComponentStatus &status)
+{
+    ComponentRuntime &model = runtime(component);
+    model.remoteState = status.state;
+    model.source = status.source;
+    model.legacy = status.legacy;
+
+    if (status.state == ComponentState::Unknown)
+    {
+        model.confirmed = ComponentState::Unknown;
+        return;
+    }
+
+    if (isPendingComponentState(status.state))
+    {
+        return;
+    }
+
+    model.confirmed = status.state;
+
+    if (model.localPending)
+    {
+        const ComponentState expected =
+            model.targetEnabled ? ComponentState::On : ComponentState::Off;
+
+        if (status.state == expected)
         {
-            powerEnabled_ = false;
-            servoEnabled_ = false;
-            streamEnabled_ = false;
-            emitSystemConfiguration();
-        }
-        else if (operationName == QStringLiteral("Servo ON"))
-        {
-            servoEnabled_ = powerEnabled_;
-            emitSystemConfiguration();
-        }
-        else if (operationName == QStringLiteral("Servo OFF"))
-        {
-            servoEnabled_ = false;
-            emitSystemConfiguration();
-        }
-        else if (operationName == QStringLiteral("Stream ON"))
-        {
-            streamEnabled_ = powerEnabled_;
-            emitSystemConfiguration();
-        }
-        else if (operationName == QStringLiteral("Stream OFF"))
-        {
-            streamEnabled_ = false;
-            emitSystemConfiguration();
+            model.localPending = false;
+            model.commandRequestId = 0;
+            model.commandTimedOut = false;
+            model.confirmationDeadlineMs = 0;
+            emit logMessage(
+                QStringLiteral("%1 is confirmed %2 by status.components.")
+                    .arg(
+                        componentName(component),
+                        model.targetEnabled
+                            ? QStringLiteral("ON")
+                            : QStringLiteral("OFF")));
         }
     }
-    else if (isSwitchOperation)
+}
+
+void RobotController::checkTimeoutsAndFreshness()
+{
+    if (!client_->isConnected())
     {
-        // Restore the last confirmed values after a rejected/failed command.
+        return;
+    }
+
+    const qint64 now = monotonicClock_.elapsed();
+    bool configurationChanged = false;
+    bool preparationTimedOut = false;
+
+    const QList<RobotComponent> components{
+        RobotComponent::Power,
+        RobotComponent::Servo,
+        RobotComponent::Stream
+    };
+
+    for (RobotComponent component : components)
+    {
+        ComponentRuntime &model = runtime(component);
+        if (!model.localPending
+            || model.confirmationDeadlineMs <= 0
+            || now < model.confirmationDeadlineMs)
+        {
+            continue;
+        }
+
+        model.localPending = false;
+        model.commandRequestId = 0;
+        model.commandTimedOut = false;
+        model.confirmationDeadlineMs = 0;
+        configurationChanged = true;
+        preparationTimedOut = preparationTimedOut || preparationRequested_;
+        emit logMessage(
+            QStringLiteral("Timed out waiting for %1 status confirmation; restored the latest confirmed state.")
+                .arg(componentName(component)));
+    }
+
+    if (configurationChanged)
+    {
         emitSystemConfiguration();
     }
 
-    if (
-        operationName == QStringLiteral("Power OFF")
-        || operationName == QStringLiteral("Servo OFF")
-        || operationName == QStringLiteral("Stream OFF"))
+    if (preparationTimedOut)
     {
-        if (operationSucceeded)
-        {
-            transitionTo(
-                std::make_unique<ConnectedState>());
-        }
+        abortPreparation(
+            QStringLiteral("Timed out waiting for component confirmation."));
     }
-    else if (
-        operationName == QStringLiteral("Power ON")
-        || operationName == QStringLiteral("Servo ON")
-        || operationName == QStringLiteral("Stream ON"))
+
+    const qint64 statusStaleDeadlineMs =
+        lastValidStatusMs_ + kStatusStaleMs;
+    const qint64 effectiveStaleDeadlineMs = qMax(
+        statusStaleDeadlineMs,
+        statusFreshnessGraceDeadlineMs_);
+
+    if (!statusMarkedStale_
+        && lastValidStatusMs_ >= 0
+        && now >= effectiveStaleDeadlineMs)
     {
-        if (operationSucceeded)
+        statusFreshnessGraceDeadlineMs_ = 0;
+        statusMarkedStale_ = true;
+        markAllComponentsUnknown(true);
+        if (state_->name() == QStringLiteral("Ready"))
         {
-            if (state_->name() == QStringLiteral("Connected")
-                && powerEnabled_ && servoEnabled_ && streamEnabled_)
+            transitionTo(std::make_unique<ConnectedState>());
+        }
+        abortPreparation(
+            QStringLiteral("Canonical status became stale."));
+        emit logMessage(
+            QStringLiteral("Component status is stale; Power, Servo, and Stream are UNKNOWN."));
+    }
+}
+
+void RobotController::markAllComponentsUnknown(bool clearPending)
+{
+    const auto clear =
+        [clearPending](ComponentRuntime &model)
+        {
+            model.confirmed = ComponentState::Unknown;
+            model.remoteState = ComponentState::Unknown;
+            model.source.clear();
+            model.legacy = false;
+
+            if (clearPending)
             {
-                // Người dùng đã bật và bridge đã xác nhận đủ ba hệ thống.
-                prepareRobot();
+                model.localPending = false;
+                model.targetEnabled = false;
+                model.commandRequestId = 0;
+                model.commandTimedOut = false;
+                model.confirmationDeadlineMs = 0;
             }
-        }
+        };
+
+    clear(power_);
+    clear(servo_);
+    clear(stream_);
+    emitSystemConfiguration();
+}
+
+SystemConfigurationView RobotController::systemConfiguration() const
+{
+    return {
+        makeView(power_),
+        makeView(servo_),
+        makeView(stream_)
+    };
+}
+
+ComponentViewState RobotController::makeView(
+    const ComponentRuntime &component) const
+{
+    ComponentState displayState = component.confirmed;
+
+    if (component.remoteState == ComponentState::Unknown)
+    {
+        displayState = ComponentState::Unknown;
     }
+    else if (isPendingComponentState(component.remoteState))
+    {
+        displayState = component.remoteState;
+    }
+    else if (component.localPending)
+    {
+        displayState = component.targetEnabled
+            ? ComponentState::PendingOn
+            : ComponentState::PendingOff;
+    }
+
+    return {
+        displayState,
+        component.confirmed,
+        component.source,
+        component.legacy
+    };
+}
+
+void RobotController::emitSystemConfiguration()
+{
+    emit systemConfigurationChanged(systemConfiguration());
+}
+
+RobotController::ComponentRuntime &RobotController::runtime(
+    RobotComponent component)
+{
+    switch (component)
+    {
+    case RobotComponent::Power:
+        return power_;
+    case RobotComponent::Servo:
+        return servo_;
+    case RobotComponent::Stream:
+        return stream_;
+    }
+
+    return power_;
+}
+
+const RobotController::ComponentRuntime &RobotController::runtime(
+    RobotComponent component) const
+{
+    switch (component)
+    {
+    case RobotComponent::Power:
+        return power_;
+    case RobotComponent::Servo:
+        return servo_;
+    case RobotComponent::Stream:
+        return stream_;
+    }
+
+    return power_;
+}
+
+bool RobotController::componentIsConfirmedOn(
+    RobotComponent component) const
+{
+    return runtime(component).confirmed == ComponentState::On;
+}
+
+bool RobotController::anyComponentPending() const
+{
+    const auto pending =
+        [](const ComponentRuntime &model)
+        {
+            return model.localPending
+                || isPendingComponentState(model.remoteState);
+        };
+
+    return pending(power_) || pending(servo_) || pending(stream_);
 }
 
 void RobotController::transitionTo(
@@ -637,18 +1232,12 @@ void RobotController::transitionTo(
     }
 
     const QString oldName =
-        state_ ? state_->name()
-               : QStringLiteral("<none>");
-
-    const QString newName =
-        nextState->name();
-
+        state_ ? state_->name() : QStringLiteral("<none>");
+    const QString newName = nextState->name();
     state_ = std::move(nextState);
 
     emit logMessage(
-        QStringLiteral("STATE: %1 -> %2")
-            .arg(oldName, newName));
-
+        QStringLiteral("STATE: %1 -> %2").arg(oldName, newName));
     emitCurrentState();
 }
 
@@ -657,8 +1246,7 @@ void RobotController::applyTransition(
 {
     if (nextState)
     {
-        transitionTo(
-            std::move(nextState));
+        transitionTo(std::move(nextState));
     }
 }
 
@@ -676,103 +1264,47 @@ void RobotController::emitCurrentState()
 void RobotController::updateStateFromStatus(
     const QJsonObject &response)
 {
-    if (!response.contains(QStringLiteral("ready")))
+    if (!response.value(QStringLiteral("success")).toBool(false))
     {
         return;
     }
 
-    const bool success =
-        response.value(
-            QStringLiteral("success")).toBool(false);
+    QJsonValue readyValue = response.value(QStringLiteral("ready"));
+    if (!readyValue.isBool()
+        && response.value(QStringLiteral("status")).isObject())
+    {
+        readyValue = response.value(QStringLiteral("status"))
+                         .toObject()
+                         .value(QStringLiteral("ready"));
+    }
 
-    if (!success)
+    if (!readyValue.isBool())
     {
         return;
     }
 
-    const bool ready =
-        response.value(
-            QStringLiteral("ready")).toBool(false);
-
-    if (ready)
+    if (readyValue.toBool())
     {
-        // Status chỉ xác nhận trạng thái của bridge. Không tự nâng ứng dụng
-        // từ Connected lên Ready; người dùng phải nhấn Chuẩn bị robot.
+        const bool configurationConfirmedReady =
+            componentIsConfirmedOn(RobotComponent::Power)
+            && componentIsConfirmedOn(RobotComponent::Servo)
+            && componentIsConfirmedOn(RobotComponent::Stream)
+            && !anyComponentPending();
+
+        if (state_->name() == QStringLiteral("Connected")
+            && configurationConfirmedReady)
+        {
+            appendStateLog(
+                QStringLiteral(
+                    "App Bridge status confirmed Ready with Power, Servo, and Stream ON."));
+            transitionTo(std::make_unique<ReadyState>());
+        }
+
         return;
     }
 
     if (state_->name() == QStringLiteral("Ready"))
     {
-        transitionTo(
-            std::make_unique<ConnectedState>());
+        transitionTo(std::make_unique<ConnectedState>());
     }
-}
-
-void RobotController::updateSystemConfigurationFromStatus(
-    const QJsonObject &response)
-{
-    if (!response.value(
-            QStringLiteral("success")).toBool(false))
-    {
-        return;
-    }
-
-    const QJsonValue powerValue =
-        findSystemStatusValue(
-            response,
-            {
-                QStringLiteral("power"),
-                QStringLiteral("power_on"),
-                QStringLiteral("powered")
-            });
-
-    const QJsonValue servoValue =
-        findSystemStatusValue(
-            response,
-            {
-                QStringLiteral("servo"),
-                QStringLiteral("servo_on"),
-                QStringLiteral("servo_enabled")
-            });
-
-    const QJsonValue streamValue =
-        findSystemStatusValue(
-            response,
-            {
-                QStringLiteral("stream"),
-                QStringLiteral("stream_on"),
-                QStringLiteral("streaming"),
-                QStringLiteral("stream_enabled")
-            });
-
-    if (powerValue.isBool())
-    {
-        powerEnabled_ = powerValue.toBool();
-    }
-
-    if (servoValue.isBool())
-    {
-        servoEnabled_ = servoValue.toBool();
-    }
-
-    if (streamValue.isBool())
-    {
-        streamEnabled_ = streamValue.toBool();
-    }
-
-    if (!powerEnabled_)
-    {
-        servoEnabled_ = false;
-        streamEnabled_ = false;
-    }
-
-    emitSystemConfiguration();
-}
-
-void RobotController::emitSystemConfiguration()
-{
-    emit systemConfigurationChanged(
-        powerEnabled_,
-        servoEnabled_,
-        streamEnabled_);
 }

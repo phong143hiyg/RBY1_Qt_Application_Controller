@@ -6,67 +6,21 @@
 
 bool PreparingState::start(RobotController &controller)
 {
-    step_ = Step::PowerOn;
-
-    return controller.sendSwitchInternal(
-        QStringLiteral("power"),
-        true,
-        QStringLiteral("Power ON"));
+    return controller.beginPreparationInternal();
 }
 
 std::unique_ptr<RobotState> PreparingState::onResponse(
     RobotController &controller,
+    quint64 requestId,
     const QString &operationName,
     const QJsonObject &response)
 {
-    const QString expectedOperation =
-        step_ == Step::PowerOn
-            ? QStringLiteral("Power ON")
-            : step_ == Step::ServoOn
-                ? QStringLiteral("Servo ON")
-                : QStringLiteral("Stream ON");
+    Q_UNUSED(controller)
+    Q_UNUSED(requestId)
+    Q_UNUSED(operationName)
+    Q_UNUSED(response)
 
-    // Ignore status or stale responses; only the current step may advance.
-    if (operationName != expectedOperation)
-    {
-        return nullptr;
-    }
-
-    if (!response.value(QStringLiteral("success")).toBool(false))
-    {
-        controller.appendStateLog(
-            QStringLiteral("Preparation failed at %1; returning to Connected.")
-                .arg(operationName));
-        return std::make_unique<ConnectedState>();
-    }
-
-    switch (step_)
-    {
-    case Step::PowerOn:
-        step_ = Step::ServoOn;
-        if (controller.sendSwitchInternal(
-                QStringLiteral("servo"), true, QStringLiteral("Servo ON")))
-        {
-            return nullptr;
-        }
-        break;
-
-    case Step::ServoOn:
-        step_ = Step::StreamOn;
-        if (controller.sendSwitchInternal(
-                QStringLiteral("stream"), true, QStringLiteral("Stream ON")))
-        {
-            return nullptr;
-        }
-        break;
-
-    case Step::StreamOn:
-        controller.appendStateLog(
-            QStringLiteral("Preparation succeeded; robot is Ready."));
-        return std::make_unique<ReadyState>();
-    }
-
-    controller.appendStateLog(
-        QStringLiteral("Could not send the next preparation command; returning to Connected."));
-    return std::make_unique<ConnectedState>();
+    // RobotController advances preparation only after status.components
+    // confirms each step. Command acknowledgements never advance this state.
+    return nullptr;
 }

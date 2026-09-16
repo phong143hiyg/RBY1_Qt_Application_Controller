@@ -68,6 +68,12 @@ public:
 
     virtual std::unique_ptr<RobotState> onResponse(
         RobotController &controller,
+        quint64 requestId,
         const QString &operationName,
         const QJsonObject &response);
+
+    virtual std::unique_ptr<RobotState> onRequestTimeout(
+        RobotController &controller,
+        quint64 requestId,
+        const QString &operationName);
 };

@@ -1,10 +1,13 @@
 RBY1DesktopQt_autogen/timestamp: \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QByteArray \
+	C:/Qt/6.11.1/mingw_64/include/QtCore/QElapsedTimer \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QHash \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QJsonObject \
+	C:/Qt/6.11.1/mingw_64/include/QtCore/QMetaType \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QObject \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QQueue \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QString \
+	C:/Qt/6.11.1/mingw_64/include/QtCore/QStringList \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QTimer \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QVector \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/q17memory.h \
@@ -53,6 +56,7 @@ RBY1DesktopQt_autogen/timestamp: \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/qdatetime.h \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/qdeadlinetimer.h \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/qdebug.h \
+	C:/Qt/6.11.1/mingw_64/include/QtCore/qelapsedtimer.h \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/qendian.h \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/qeventloop.h \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/qexceptionhandling.h \
@@ -379,6 +383,16 @@ RBY1DesktopQt_autogen/timestamp: \
 	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargets-relwithdebinfo.cmake \
 	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargets.cmake \
 	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargetsPrecheck.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestAdditionalTargetInfo.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestConfig.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestConfigVersion.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestConfigVersionImpl.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestDependencies.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestTargets-relwithdebinfo.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestTargets.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestTargetsPrecheck.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/Qt6TestVersionlessAliasTargets.cmake \
+	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Test/QtTestProperties.cmake \
 	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Widgets/Qt6QModernWindowsStylePluginAdditionalTargetInfo.cmake \
 	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Widgets/Qt6QModernWindowsStylePluginConfig.cmake \
 	C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6Widgets/Qt6QModernWindowsStylePluginTargets-relwithdebinfo.cmake \
@@ -414,6 +428,9 @@ RBY1DesktopQt_autogen/timestamp: \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeRCInformation.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeSystemSpecificInformation.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeSystemSpecificInitialize.cmake \
+	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CTest.cmake \
+	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CTestTargets.cmake \
+	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CTestUseLaunchers.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXCompilerFlag.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXSourceCompiles.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckIncludeFileCXX.cmake \
@@ -421,6 +438,7 @@ RBY1DesktopQt_autogen/timestamp: \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Compiler/CMakeCommonCompilerMacros.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Compiler/GNU-CXX.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Compiler/GNU.cmake \
+	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/DartConfiguration.tcl.in \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageHandleStandardArgs.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageMessage.cmake \
 	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindThreads.cmake \
@@ -657,6 +675,10 @@ RBY1DesktopQt_autogen/timestamp: \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/controller/RobotController.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/controller/RobotController.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/main.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/model/SystemStatus.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/model/SystemStatus.hpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/NdjsonParser.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/NdjsonParser.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/state/ConnectedState.cpp \
@@ -673,6 +695,8 @@ RBY1DesktopQt_autogen/timestamp: \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/state/ReadyState.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/state/RobotState.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/state/RobotState.hpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/ui/JointAngleEdit.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/ui/JointAngleEdit.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/ui/MainWindow.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/ui/MainWindow.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/ui/ToggleSwitch.cpp \

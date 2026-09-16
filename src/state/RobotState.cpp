@@ -65,8 +65,17 @@ std::unique_ptr<RobotState> RobotState::sendPose(
 
 std::unique_ptr<RobotState> RobotState::onResponse(
     RobotController &,
+    quint64,
     const QString &,
     const QJsonObject &)
+{
+    return nullptr;
+}
+
+std::unique_ptr<RobotState> RobotState::onRequestTimeout(
+    RobotController &,
+    quint64,
+    const QString &)
 {
     return nullptr;
 }

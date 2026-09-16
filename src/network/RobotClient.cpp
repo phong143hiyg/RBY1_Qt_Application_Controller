@@ -2,7 +2,8 @@
 
 #include <QAbstractSocket>
 #include <QJsonDocument>
-#include <QJsonParseError>
+#include <QStringList>
+#include <QTimer>
 
 RobotClient::RobotClient(QObject *parent)
     : QObject(parent)
@@ -19,8 +20,8 @@ RobotClient::RobotClient(QObject *parent)
         this,
         [this]()
         {
-            receiveBuffer_.clear();
-            pendingOperations_.clear();
+            parser_.clear();
+            pendingRequests_.clear();
             emit bridgeDisconnected();
         });
 
@@ -30,8 +31,7 @@ RobotClient::RobotClient(QObject *parent)
         this,
         [this]()
         {
-            receiveBuffer_.append(socket_.readAll());
-            processIncomingLines();
+            processFrames(parser_.append(socket_.readAll()));
         });
 
     connect(
@@ -44,6 +44,14 @@ RobotClient::RobotClient(QObject *parent)
         });
 }
 
+RobotClient::~RobotClient()
+{
+    socket_.disconnect(this);
+    socket_.abort();
+    pendingRequests_.clear();
+    parser_.clear();
+}
+
 void RobotClient::connectToBridge(
     const QString &host,
     quint16 port)
@@ -53,9 +61,8 @@ void RobotClient::connectToBridge(
         socket_.abort();
     }
 
-    receiveBuffer_.clear();
-    pendingOperations_.clear();
-
+    parser_.clear();
+    pendingRequests_.clear();
     socket_.connectToHost(host, port);
 }
 
@@ -79,89 +86,201 @@ bool RobotClient::isConnected() const
     return socket_.state() == QAbstractSocket::ConnectedState;
 }
 
-bool RobotClient::sendCommand(
+quint64 RobotClient::sendCommand(
     const QJsonObject &command,
-    const QString &operationName)
+    const QString &operationName,
+    int timeoutMs)
 {
     if (!isConnected())
     {
         emit clientError(
-            QStringLiteral(
-                "Ứng dụng chưa kết nối C++ ROS 2 bridge."));
-        return false;
+            QStringLiteral("The application is not connected to App Bridge."));
+        return 0;
     }
 
     QByteArray payload =
-        QJsonDocument(command).toJson(
-            QJsonDocument::Compact);
-
+        QJsonDocument(command).toJson(QJsonDocument::Compact);
     payload.append('\n');
 
-    pendingOperations_.enqueue(operationName);
+    const quint64 requestId = nextRequestId_++;
+    pendingRequests_.enqueue({
+        requestId,
+        operationName,
+        command.value(QStringLiteral("command")).toString(),
+        false
+    });
 
     if (socket_.write(payload) < 0)
     {
-        if (!pendingOperations_.isEmpty())
-        {
-            pendingOperations_.dequeue();
-        }
-
+        pendingRequests_.removeLast();
         emit clientError(socket_.errorString());
-        return false;
+        return 0;
     }
 
-    return true;
+    if (timeoutMs > 0)
+    {
+        QTimer::singleShot(
+            timeoutMs,
+            this,
+            [this, requestId]()
+            {
+                for (PendingRequest &request : pendingRequests_)
+                {
+                    if (request.id != requestId || request.timeoutEmitted)
+                    {
+                        continue;
+                    }
+
+                    request.timeoutEmitted = true;
+                    emit requestTimedOut(
+                        request.id,
+                        request.operationName);
+                    break;
+                }
+            });
+    }
+
+    return requestId;
 }
 
-void RobotClient::processIncomingLines()
+void RobotClient::processFrames(
+    const QVector<NdjsonFrame> &frames)
 {
-    while (true)
+    for (const NdjsonFrame &frame : frames)
     {
-        const qsizetype newlineIndex =
-            receiveBuffer_.indexOf('\n');
-
-        if (newlineIndex < 0)
+        if (!frame.valid)
         {
-            return;
+            if (!pendingRequests_.isEmpty())
+            {
+                pendingRequests_.dequeue();
+            }
+            emit clientError(frame.error);
+            continue;
         }
 
-        QByteArray line =
-            receiveBuffer_.left(newlineIndex).trimmed();
+        const QJsonObject nestedStatus =
+            frame.object.value(QStringLiteral("status")).isObject()
+                ? frame.object.value(QStringLiteral("status")).toObject()
+                : QJsonObject{};
+        const bool isCanonicalStatus =
+            frame.object.contains(QStringLiteral("components"))
+            || nestedStatus.contains(QStringLiteral("components"));
+        const bool isJointSnapshot =
+            frame.object.value(QStringLiteral("groups")).isObject()
+            || frame.object.contains(QStringLiteral("torso"))
+            || frame.object.contains(QStringLiteral("head"))
+            || frame.object.contains(QStringLiteral("right_arm"))
+            || frame.object.contains(QStringLiteral("left_arm"));
 
-        receiveBuffer_.remove(
+        PendingRequest request{
             0,
-            newlineIndex + 1);
+            isCanonicalStatus
+                ? QStringLiteral("Status")
+                : QStringLiteral("Unsolicited response"),
+            {},
+            false
+        };
 
-        if (line.isEmpty())
+        if (isCanonicalStatus)
         {
-            continue;
+            for (qsizetype index = 0;
+                 index < pendingRequests_.size();
+                 ++index)
+            {
+                if (pendingRequests_.at(index).operationName
+                    == QStringLiteral("Status"))
+                {
+                    request = pendingRequests_.takeAt(index);
+                    break;
+                }
+            }
         }
-
-        const QString operationName =
-            pendingOperations_.isEmpty()
-                ? QStringLiteral("Phản hồi")
-                : pendingOperations_.dequeue();
-
-        QJsonParseError parseError;
-
-        const QJsonDocument document =
-            QJsonDocument::fromJson(
-                line,
-                &parseError);
-
-        if (
-            parseError.error != QJsonParseError::NoError
-            || !document.isObject())
+        else if (isJointSnapshot)
         {
-            emit clientError(
-                QStringLiteral(
-                    "Bridge trả JSON không hợp lệ: %1")
-                    .arg(parseError.errorString()));
-            continue;
+            request.operationName = QStringLiteral("Joints status");
+            request.commandName = QStringLiteral("joints_status");
+
+            for (qsizetype index = 0;
+                 index < pendingRequests_.size();
+                 ++index)
+            {
+                if (pendingRequests_.at(index).commandName
+                    == QStringLiteral("joints_status"))
+                {
+                    request = pendingRequests_.takeAt(index);
+                    break;
+                }
+            }
+        }
+        else if (!pendingRequests_.isEmpty())
+        {
+            QString echoedCommand;
+            const QStringList commandKeys{
+                QStringLiteral("command"),
+                QStringLiteral("request_command")
+            };
+
+            for (const QString &key : commandKeys)
+            {
+                if (frame.object.value(key).isString())
+                {
+                    echoedCommand = frame.object.value(key).toString();
+                    break;
+                }
+            }
+
+            qsizetype matchedIndex = -1;
+
+            if (!echoedCommand.isEmpty())
+            {
+                for (qsizetype index = 0;
+                     index < pendingRequests_.size();
+                     ++index)
+                {
+                    if (pendingRequests_.at(index).commandName
+                        == echoedCommand)
+                    {
+                        matchedIndex = index;
+                        break;
+                    }
+                }
+            }
+
+            // A canonical status response is self-identifying. If a plain
+            // command ACK arrives while Status is at the head of the queue,
+            // associate it with the first non-status request instead of
+            // consuming the Status slot and permanently stranding JointBusy.
+            const auto isBackgroundRequest =
+                [](const PendingRequest &pending)
+                {
+                    return pending.commandName == QStringLiteral("status")
+                        || pending.commandName
+                            == QStringLiteral("joints_status");
+                };
+
+            if (matchedIndex < 0
+                && isBackgroundRequest(pendingRequests_.head()))
+            {
+                for (qsizetype index = 1;
+                     index < pendingRequests_.size();
+                     ++index)
+                {
+                    if (!isBackgroundRequest(pendingRequests_.at(index)))
+                    {
+                        matchedIndex = index;
+                        break;
+                    }
+                }
+            }
+
+            request = matchedIndex >= 0
+                ? pendingRequests_.takeAt(matchedIndex)
+                : pendingRequests_.dequeue();
         }
 
         emit responseReceived(
-            operationName,
-            document.object());
+            request.id,
+            request.operationName,
+            frame.object);
     }
 }

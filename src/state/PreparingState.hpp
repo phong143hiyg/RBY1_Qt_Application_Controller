@@ -5,13 +5,6 @@
 class PreparingState final : public RobotState
 {
 public:
-    enum class Step
-    {
-        PowerOn,
-        ServoOn,
-        StreamOn
-    };
-
     bool start(RobotController &controller);
 
     [[nodiscard]] QString name() const override
@@ -26,9 +19,8 @@ public:
 
     std::unique_ptr<RobotState> onResponse(
         RobotController &controller,
+        quint64 requestId,
         const QString &operationName,
         const QJsonObject &response) override;
 
-private:
-    Step step_{Step::PowerOn};
 };

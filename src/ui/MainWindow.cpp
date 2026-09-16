@@ -1,5 +1,6 @@
 #include "ui/MainWindow.hpp"
 #include "ui/ToggleSwitch.hpp"
+#include "ui/JointAngleEdit.hpp"
 
 #include "controller/RobotController.hpp"
 
@@ -15,20 +16,25 @@
 #include <QJsonDocument>
 #include <QJsonValue>
 #include <QLabel>
+#include <QMessageBox>
 #include <QList>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QStringList>
 #include <QTabWidget>
 #include <QTextDocument>
 #include <QTextEdit>
+#include <QThread>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QtMath>
 
 namespace
 {
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kManualJointLimitMarginDegrees = 1.0;
 
 double degreesToRadians(double degrees)
 {
@@ -38,6 +44,87 @@ double degreesToRadians(double degrees)
 double radiansToDegrees(double radians)
 {
     return radians * 180.0 / kPi;
+}
+
+struct JointLimits
+{
+    double minimumDegrees;
+    double maximumDegrees;
+};
+
+JointLimits jointLimits(
+    const QString &groupName,
+    int jointIndex)
+{
+    if (groupName == QStringLiteral("torso"))
+    {
+        switch (jointIndex)
+        {
+        case 0: return {-15.0, 15.0};
+        case 1: return {-30.0, 90.0};
+        case 2: return {-150.0, 90.0};
+        case 3: return {-45.0, 90.0};
+        case 4: return {-30.0, 30.0};
+        case 5: return {-135.0, 135.0};
+        default: break;
+        }
+    }
+
+    if (groupName == QStringLiteral("head"))
+    {
+        return {-180.0, 180.0};
+    }
+
+    if (groupName == QStringLiteral("right_arm"))
+    {
+        switch (jointIndex)
+        {
+        case 0: return {-180.0, 180.0};
+        case 1: return {-180.0, 0.0};
+        case 2: return {-180.0, 180.0};
+        case 3: return {-150.0, 0.0};
+        case 4: return {-180.0, 180.0};
+        case 5: return {-90.0, 110.0};
+        case 6: return {-155.0, 155.0};
+        default: break;
+        }
+    }
+
+    if (groupName == QStringLiteral("left_arm"))
+    {
+        switch (jointIndex)
+        {
+        case 0: return {-180.0, 180.0};
+        case 1: return {0.0, 180.0};
+        case 2: return {-180.0, 180.0};
+        case 3: return {-150.0, 0.0};
+        case 4: return {-180.0, 180.0};
+        case 5: return {-90.0, 110.0};
+        case 6: return {-155.0, 155.0};
+        default: break;
+        }
+    }
+
+    // Safe fallback for an unknown joint.
+    return {-180.0, 180.0};
+}
+
+JointLimits manualJointLimits(
+    const QString &groupName,
+    int jointIndex)
+{
+    const JointLimits hardwareLimits =
+        jointLimits(groupName, jointIndex);
+
+    // Manual controls stay slightly inside the mechanical endpoints. A
+    // command at the exact endpoint can make the robot reject control and
+    // terminate the active command stream.
+    return {
+        hardwareLimits.minimumDegrees
+            + kManualJointLimitMarginDegrees,
+        hardwareLimits.maximumDegrees
+            - kManualJointLimitMarginDegrees
+    };
 }
 
 QString statusValueText(const QJsonValue &value)
@@ -121,28 +208,26 @@ QString compactStatusText(const QJsonObject &response)
     appendField(
         QStringLiteral("ready"),
         {QStringLiteral("ready")});
-    appendField(
-        QStringLiteral("power"),
-        {
-            QStringLiteral("power"),
-            QStringLiteral("power_on"),
-            QStringLiteral("powered")
-        });
-    appendField(
-        QStringLiteral("servo"),
-        {
-            QStringLiteral("servo"),
-            QStringLiteral("servo_on"),
-            QStringLiteral("servo_enabled")
-        });
-    appendField(
-        QStringLiteral("stream"),
-        {
-            QStringLiteral("stream"),
-            QStringLiteral("stream_on"),
-            QStringLiteral("streaming"),
-            QStringLiteral("stream_enabled")
-        });
+    const ParsedSystemStatus parsed = parseSystemStatus(response);
+    if (parsed.accepted)
+    {
+        const auto appendComponent =
+            [&parts](const QString &name, const ComponentStatus &component)
+            {
+                parts.append(
+                    QStringLiteral("%1=%2%3")
+                        .arg(
+                            name,
+                            componentStateText(component.state),
+                            component.legacy
+                                ? QStringLiteral("[legacy]")
+                                : QString{}));
+            };
+
+        appendComponent(QStringLiteral("power"), parsed.power);
+        appendComponent(QStringLiteral("servo"), parsed.servo);
+        appendComponent(QStringLiteral("stream"), parsed.stream);
+    }
     appendField(
         QStringLiteral("message"),
         {
@@ -175,6 +260,7 @@ MainWindow::MainWindow(QWidget *parent)
         false,
         false,
         false);
+    applySystemConfiguration({});
 }
 
 void MainWindow::buildInterface()
@@ -188,8 +274,8 @@ void MainWindow::buildInterface()
     auto *centralWidget = new QWidget(this);
     auto *mainLayout = new QVBoxLayout(centralWidget);
 
-    mainLayout->setContentsMargins(20, 20, 20, 20);
-    mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(8, 8, 8, 8);
+    mainLayout->setSpacing(6);
 
     auto *titleLabel =
         new QLabel(
@@ -198,61 +284,36 @@ void MainWindow::buildInterface()
             centralWidget);
 
     QFont titleFont = titleLabel->font();
-    titleFont.setPointSize(20);
+    titleFont.setPointSize(15);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
 
-    auto *statusLayout = new QHBoxLayout();
-
-    connectionStatusLabel_ =
-        new QLabel(
-            QStringLiteral(
-                "Kết nối: Chưa kết nối"),
-            centralWidget);
-
-    stateLabel_ =
-        new QLabel(
-            QStringLiteral(
-                "State: Disconnected"),
-            centralWidget);
-
-    QFont stateFont = stateLabel_->font();
-    stateFont.setBold(true);
-    stateLabel_->setFont(stateFont);
-
-    statusLayout->addWidget(connectionStatusLabel_);
-    statusLayout->addStretch();
-    statusLayout->addWidget(stateLabel_);
-
-    auto *connectionGroup =
-        new QGroupBox(
-            QStringLiteral("Kết nối bridge"),
-            centralWidget);
-
-    auto *connectionLayout =
-        new QHBoxLayout(connectionGroup);
+    auto *headerLayout = new QHBoxLayout();
+    headerLayout->setSpacing(6);
+    headerLayout->addWidget(titleLabel);
+    headerLayout->addStretch();
 
     connectButton_ =
         new QPushButton(
             QStringLiteral("Kết nối"),
-            connectionGroup);
+            centralWidget);
 
     pingButton_ =
         new QPushButton(
             QStringLiteral("Ping"),
-            connectionGroup);
+            centralWidget);
 
     logButton_ =
         new QPushButton(
             QStringLiteral("Log"),
-            connectionGroup);
+            centralWidget);
 
-    connectionLayout->addWidget(connectButton_);
-    connectionLayout->addWidget(pingButton_);
-    connectionLayout->addWidget(logButton_);
-    connectionLayout->addStretch();
+    headerLayout->addWidget(connectButton_);
+    headerLayout->addWidget(pingButton_);
+    headerLayout->addWidget(logButton_);
 
     tabWidget_ = new QTabWidget(centralWidget);
+    tabWidget_->setTabBarAutoHide(true);
 
     tabWidget_->addTab(
         buildSystemAndBaseTab(),
@@ -274,9 +335,7 @@ void MainWindow::buildInterface()
     logTextEdit_->setFont(logFont);
     logLayout->addWidget(logTextEdit_);
 
-    mainLayout->addWidget(titleLabel);
-    mainLayout->addLayout(statusLayout);
-    mainLayout->addWidget(connectionGroup);
+    mainLayout->addLayout(headerLayout);
     mainLayout->addWidget(tabWidget_, 1);
 
     setCentralWidget(centralWidget);
@@ -286,7 +345,10 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 {
     auto *tab = new QWidget();
     auto *layout = new QVBoxLayout(tab);
+    layout->setContentsMargins(6, 6, 6, 6);
+    layout->setSpacing(6);
     auto *topLayout = new QHBoxLayout();
+    topLayout->setSpacing(6);
 
     systemGroup_ =
         new QGroupBox(
@@ -296,13 +358,15 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     auto *systemLayout =
         new QGridLayout(systemGroup_);
+    systemLayout->setContentsMargins(8, 18, 8, 6);
+    systemLayout->setSpacing(4);
 
     prepareButton_ =
         new QPushButton(
             QStringLiteral("CHUẨN BỊ ROBOT"),
             systemGroup_);
 
-    prepareButton_->setMinimumHeight(42);
+    prepareButton_->setMinimumHeight(28);
     prepareButton_->setToolTip(
         QStringLiteral(
             "Bật nhanh Power, Servo và Stream rồi đưa robot vào Ready."));
@@ -311,29 +375,19 @@ QWidget *MainWindow::buildSystemAndBaseTab()
         new ToggleSwitch(
             QStringLiteral("Power"),
             systemGroup_);
+    powerSwitch_->setObjectName(QStringLiteral("powerSwitch"));
 
     servoSwitch_ =
         new ToggleSwitch(
             QStringLiteral("Servo"),
             systemGroup_);
+    servoSwitch_->setObjectName(QStringLiteral("servoSwitch"));
 
     streamSwitch_ =
         new ToggleSwitch(
             QStringLiteral("Stream"),
             systemGroup_);
-
-    cancelButton_ =
-        new QPushButton(
-            QStringLiteral("CANCEL"),
-            systemGroup_);
-
-    cancelButton_->setStyleSheet(
-        QStringLiteral(
-            "QPushButton {"
-            "background-color:#8b0000;"
-            "color:white;"
-            "font-weight:bold;"
-            "}"));
+    streamSwitch_->setObjectName(QStringLiteral("streamSwitch"));
 
     systemLayout->addWidget(
         prepareButton_, 0, 0, 1, 2);
@@ -347,11 +401,6 @@ QWidget *MainWindow::buildSystemAndBaseTab()
     systemLayout->addWidget(
         streamSwitch_, 3, 0, 1, 2);
 
-    systemLayout->addWidget(
-        cancelButton_, 4, 0, 1, 2);
-
-    systemLayout->setRowStretch(5, 1);
-
     driveGroup_ =
         new QGroupBox(
             QStringLiteral(
@@ -360,6 +409,8 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     auto *driveLayout =
         new QGridLayout(driveGroup_);
+    driveLayout->setContentsMargins(8, 18, 8, 6);
+    driveLayout->setSpacing(4);
 
     rotateLeftButton_ =
         new QPushButton(
@@ -416,7 +467,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     for (QPushButton *button : buttons)
     {
-        button->setMinimumSize(96, 48);
+        button->setMinimumSize(86, 32);
     }
 
     driveLayout->addWidget(
@@ -447,6 +498,9 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     auto *robotStatusLayout =
         new QGridLayout(robotStatusGroup_);
+    robotStatusLayout->setContentsMargins(8, 18, 8, 6);
+    robotStatusLayout->setHorizontalSpacing(8);
+    robotStatusLayout->setVerticalSpacing(3);
 
     robotConnectionValueLabel_ = new QLabel(QStringLiteral("Chưa kết nối"), robotStatusGroup_);
     robotControllerStateValueLabel_ = new QLabel(QStringLiteral("Disconnected"), robotStatusGroup_);
@@ -478,16 +532,23 @@ QWidget *MainWindow::buildSystemAndBaseTab()
         nameLabel->setStyleSheet(
             QStringLiteral("font-weight:600;"));
 
-        robotStatusLayout->addWidget(nameLabel, row, 0);
-        robotStatusLayout->addWidget(statusRows.at(row).second, row, 1);
+        const int gridRow = row / 2;
+        const int gridColumn = (row % 2) * 2;
+        robotStatusLayout->addWidget(nameLabel, gridRow, gridColumn);
+        robotStatusLayout->addWidget(statusRows.at(row).second, gridRow, gridColumn + 1);
     }
 
     robotStatusLayout->setColumnStretch(1, 1);
-    robotStatusLayout->setRowStretch(statusRows.size(), 1);
+    robotStatusLayout->setColumnStretch(3, 1);
 
-    topLayout->addWidget(systemGroup_, 1);
-    topLayout->addWidget(driveGroup_, 2);
-    topLayout->addWidget(robotStatusGroup_, 2);
+    for (QGroupBox *group : {systemGroup_, driveGroup_, robotStatusGroup_})
+    {
+        group->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    }
+
+    topLayout->addWidget(systemGroup_, 1, Qt::AlignTop);
+    topLayout->addWidget(driveGroup_, 2, Qt::AlignTop);
+    topLayout->addWidget(robotStatusGroup_, 2, Qt::AlignTop);
 
     layout->addLayout(topLayout);
     layout->addWidget(buildUpperBodyTab(), 1);
@@ -503,6 +564,9 @@ QWidget *MainWindow::buildUpperBodyTab()
 
     auto *tabLayout = new QVBoxLayout(tab);
     auto *layout = new QVBoxLayout(upperBodyContent_);
+    tabLayout->setContentsMargins(0, 0, 0, 0);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(6);
 
     auto *toolbarGroup =
         new QGroupBox(
@@ -510,8 +574,9 @@ QWidget *MainWindow::buildUpperBodyTab()
                 "Điều khiển thân trên"),
             upperBodyContent_);
 
-    auto *toolbarLayout =
-        new QGridLayout(toolbarGroup);
+    auto *toolbarLayout = new QHBoxLayout(toolbarGroup);
+    toolbarLayout->setContentsMargins(8, 18, 8, 6);
+    toolbarLayout->setSpacing(6);
 
     initialButton_ =
         new QPushButton(
@@ -547,44 +612,6 @@ QWidget *MainWindow::buildUpperBodyTab()
     clearReadyButton_->setToolTip(
         QStringLiteral("Xóa pose đã lưu."));
 
-    jointStepSpinBox_ =
-        new QDoubleSpinBox(toolbarGroup);
-
-    // The UI is in degrees; RobotController/bridge continue to use radians.
-    jointStepSpinBox_->setRange(
-        0.01 * 180.0 / kPi,
-        0.20 * 180.0 / kPi);
-    jointStepSpinBox_->setDecimals(2);
-    jointStepSpinBox_->setSingleStep(0.1);
-    jointStepSpinBox_->setValue(0.05 * 180.0 / kPi);
-    jointStepSpinBox_->setSuffix(
-        QStringLiteral(" \u00B0"));
-
-    connect(
-        jointStepSpinBox_,
-        QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-        this,
-        [this](double stepDegrees)
-        {
-            const int span =
-                static_cast<int>(stepDegrees * 100.0);
-
-            for (auto groupIt = jointSliders_.begin();
-                 groupIt != jointSliders_.end();
-                 ++groupIt)
-            {
-                for (QSlider *slider : groupIt.value())
-                {
-                    const int center =
-                        static_cast<int>(
-                            slider->property("confirmedDegrees").toDouble()
-                            * 100.0);
-                    slider->setRange(center - span, center + span);
-                    slider->setValue(center);
-                }
-            }
-        });
-
     minimumTimeSpinBox_ =
         new QDoubleSpinBox(toolbarGroup);
 
@@ -597,86 +624,57 @@ QWidget *MainWindow::buildUpperBodyTab()
 
     toolbarLayout->addWidget(
         new QLabel(
-            QStringLiteral("Bước:"),
-            toolbarGroup),
-        0,
-        0);
-
-    toolbarLayout->addWidget(
-        jointStepSpinBox_,
-        0,
-        1);
-
-    toolbarLayout->addWidget(
-        new QLabel(
             QStringLiteral("Thời gian:"),
-            toolbarGroup),
-        0,
-        2);
-
-    toolbarLayout->addWidget(
-        minimumTimeSpinBox_,
-        0,
-        3);
-
-    toolbarLayout->addWidget(initialButton_, 1, 0);
-
-    toolbarLayout->addWidget(
-        armsReadyButton_,
-        1,
-        1);
-
-    toolbarLayout->addWidget(setReadyButton_, 1, 2);
-
-    toolbarLayout->addWidget(goReadyButton_, 1, 3);
-
-    toolbarLayout->addWidget(clearReadyButton_, 1, 4);
+            toolbarGroup));
+    minimumTimeSpinBox_->setMaximumWidth(96);
+    toolbarLayout->addWidget(minimumTimeSpinBox_);
+    toolbarLayout->addWidget(initialButton_, 1);
+    toolbarLayout->addWidget(armsReadyButton_, 1);
+    toolbarLayout->addWidget(setReadyButton_, 1);
+    toolbarLayout->addWidget(goReadyButton_, 1);
+    toolbarLayout->addWidget(clearReadyButton_, 1);
 
     auto *scrollArea =
         new QScrollArea(upperBodyContent_);
+    scrollArea->setObjectName(QStringLiteral("jointScrollArea"));
+    scrollArea->setFrameShape(QFrame::NoFrame);
 
     scrollArea->setWidgetResizable(true);
 
     auto *scrollContent =
         new QWidget(scrollArea);
 
-    auto *jointGrid =
-        new QGridLayout(scrollContent);
+    auto *jointGrid = new QGridLayout(scrollContent);
+    jointGrid->setContentsMargins(0, 0, 0, 0);
+    jointGrid->setSpacing(6);
+    jointGrid->setColumnStretch(0, 1);
+    jointGrid->setColumnStretch(1, 1);
+    // Extra viewport space goes below the two aligned rows, not between them.
+    jointGrid->setRowStretch(2, 1);
 
     jointGrid->addWidget(
         buildJointGroup(
             QStringLiteral("Torso"),
             QStringLiteral("torso"),
-            6),
-        0,
-        0);
+            6), 0, 0);
 
     jointGrid->addWidget(
         buildJointGroup(
             QStringLiteral("Head"),
             QStringLiteral("head"),
-            2),
-        0,
-        1);
+            2), 0, 1);
 
     jointGrid->addWidget(
         buildJointGroup(
             QStringLiteral("Right Arm"),
             QStringLiteral("right_arm"),
-            7),
-        1,
-        0);
+            7), 1, 0);
 
     jointGrid->addWidget(
         buildJointGroup(
             QStringLiteral("Left Arm"),
             QStringLiteral("left_arm"),
-            7),
-        1,
-        1);
-
-    jointGrid->setColumnStretch(0, 1);
-    jointGrid->setColumnStretch(1, 1);
+            7), 1, 1);
 
     scrollArea->setWidget(scrollContent);
 
@@ -694,35 +692,17 @@ QGroupBox *MainWindow::buildJointGroup(
     int jointCount)
 {
     auto *groupBox = new QGroupBox(title);
+    groupBox->setObjectName(QStringLiteral("%1JointGroup").arg(groupName));
     auto *layout = new QGridLayout(groupBox);
+    layout->setContentsMargins(8, 18, 8, 6);
+    layout->setHorizontalSpacing(4);
+    layout->setVerticalSpacing(3);
+    groupBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
-    auto *jointHeader =
-        new QLabel(
-            QStringLiteral("Khớp"),
-            groupBox);
+    // Col 5 (slider) stretches; all other columns are fixed.
+    layout->setColumnStretch(5, 1);
 
-    auto *positionHeader =
-        new QLabel(
-            QStringLiteral("Vị trí hiện tại"),
-            groupBox);
-
-    auto *controlHeader =
-        new QLabel(
-            QStringLiteral("Điều chỉnh"),
-            groupBox);
-
-    QFont headerFont = jointHeader->font();
-    headerFont.setBold(true);
-
-    jointHeader->setFont(headerFont);
-    positionHeader->setFont(headerFont);
-    controlHeader->setFont(headerFont);
-
-    layout->addWidget(jointHeader, 0, 0);
-    layout->addWidget(positionHeader, 0, 1);
-    layout->addWidget(controlHeader, 0, 2, 1, 2);
-
-    QVector<QLabel *> labels;
+    QVector<JointAngleEdit *> labels;
     labels.reserve(jointCount);
 
     QVector<QSlider *> sliders;
@@ -730,32 +710,114 @@ QGroupBox *MainWindow::buildJointGroup(
 
     for (int index = 0; index < jointCount; ++index)
     {
+        const JointLimits limits = manualJointLimits(groupName, index);
+
+        // Col 0: θN: symbol label
         auto *nameLabel =
             new QLabel(
-                QStringLiteral("%1[%2]")
-                    .arg(groupName)
-                    .arg(index),
+                QStringLiteral("\u03B8%1:").arg(index + 1),
                 groupBox);
+        nameLabel->setFixedWidth(34);
+        nameLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-        auto *valueLabel =
+        // Col 1: current value — cyan background, bold, right-aligned
+        auto *valueLabel = new JointAngleEdit(groupBox);
+        valueLabel->setObjectName(
+            QStringLiteral("%1Joint%2Value").arg(groupName).arg(index));
+        valueLabel->setFixedWidth(92);
+        valueLabel->setMinimumHeight(26);
+        QFont valueFont = valueLabel->font();
+        valueFont.setPointSize(11);
+        valueFont.setBold(true);
+        valueLabel->setFont(valueFont);
+        valueLabel->setToolTip(QStringLiteral(
+            "Nhập góc theo độ rồi nhấn Enter để di chuyển. "
+            "Bấm ra ngoài để bỏ giá trị chưa gửi."));
+        valueLabel->setStyleSheet(
+            QStringLiteral(
+                "background-color:#00c8ff;"
+                "color:#000000;"
+                "font-weight:bold;"
+                "padding:2px 5px;"
+                "border:1px solid #0099cc;"));
+
+        // Col 2: degree unit label
+        auto *unitLabel =
             new QLabel(
-                QStringLiteral("--"),
+                QStringLiteral("\u00B0"),
                 groupBox);
+        unitLabel->setFixedWidth(14);
 
-        valueLabel->setMinimumWidth(110);
+        // Col 3: minimum limit label
+        auto *minLabel =
+            new QLabel(
+                QString::number(limits.minimumDegrees, 'f', 1),
+                groupBox);
+        minLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        minLabel->setStyleSheet(
+            QStringLiteral("color:#555555;font-size:9pt;"));
 
+        // Col 4: ◄ nudge-left button
         auto *minusButton =
             new QPushButton(
-                QStringLiteral("−"),
+                QStringLiteral("\u25C4"),
                 groupBox);
+        minusButton->setFixedSize(22, 22);
+        minusButton->setToolTip(
+            QStringLiteral("Giảm 1°"));
 
+        // Col 5: position slider (stretches)
+        auto *adjustSlider =
+            new QSlider(Qt::Horizontal, groupBox);
+        adjustSlider->setObjectName(
+            QStringLiteral("%1Joint%2Slider").arg(groupName).arg(index));
+        adjustSlider->setRange(
+            static_cast<int>(limits.minimumDegrees * 100.0),
+            static_cast<int>(limits.maximumDegrees * 100.0));
+        adjustSlider->setValue(0);
+        adjustSlider->setPageStep(100);
+        adjustSlider->setTickInterval(3000);
+        adjustSlider->setTickPosition(QSlider::TicksBelow);
+        adjustSlider->setMinimumWidth(120);
+        adjustSlider->setProperty("confirmedDegrees", 0.0);
+        adjustSlider->setToolTip(
+            QStringLiteral(
+                "Kéo và nhả để đặt vị trí khớp."));
+
+        // Col 6: ► nudge-right button
         auto *plusButton =
             new QPushButton(
-                QStringLiteral("+"),
+                QStringLiteral("\u25BA"),
                 groupBox);
+        plusButton->setFixedSize(22, 22);
+        plusButton->setToolTip(
+            QStringLiteral("Tăng 1°"));
 
-        minusButton->setFixedWidth(44);
-        plusButton->setFixedWidth(44);
+        // Col 7: maximum limit label
+        auto *maxLabel =
+            new QLabel(
+                QString::number(limits.maximumDegrees, 'f', 1),
+                groupBox);
+        maxLabel->setStyleSheet(
+            QStringLiteral("color:#555555;font-size:9pt;"));
+
+        // ---- Connections ----
+
+        connect(valueLabel, &QLineEdit::returnPressed, this,
+            [this, groupName, index, valueLabel]()
+            {
+                bool valid = false;
+                const double targetDegrees = valueLabel->text().trimmed().toDouble(&valid);
+                if (!valid || !qIsFinite(targetDegrees))
+                {
+                    showJointMotionError(QStringLiteral("Góc khớp phải là một số hữu hạn, tính theo độ."));
+                    return;
+                }
+                // Return to live display before sending; never display the
+                // entered target as though the robot already reached it.
+                valueLabel->clearFocus();
+                submitJointTarget(groupName, index, targetDegrees);
+            });
 
         connect(
             minusButton,
@@ -763,13 +825,10 @@ QGroupBox *MainWindow::buildJointGroup(
             this,
             [this, groupName, index]()
             {
-                const double delta =
-                    -degreesToRadians(jointStepSpinBox_->value());
-
                 controller_->nudgeJoint(
                     groupName,
                     index,
-                    delta,
+                    -degreesToRadians(1.0),
                     minimumTimeSpinBox_->value());
             });
 
@@ -779,34 +838,12 @@ QGroupBox *MainWindow::buildJointGroup(
             this,
             [this, groupName, index]()
             {
-                const double delta =
-                    degreesToRadians(jointStepSpinBox_->value());
-
                 controller_->nudgeJoint(
                     groupName,
                     index,
-                    delta,
+                    degreesToRadians(1.0),
                     minimumTimeSpinBox_->value());
             });
-
-        auto *adjustSlider =
-            new QSlider(
-                Qt::Horizontal,
-                groupBox);
-
-        // Select a relative joint movement from -Bước to +Bước.
-        // The command is sent only when the mouse is released.
-        const int initialSpan =
-            static_cast<int>(jointStepSpinBox_->value() * 100.0);
-        adjustSlider->setRange(-initialSpan, initialSpan);
-        adjustSlider->setValue(0);
-        adjustSlider->setPageStep(100);
-        adjustSlider->setTickInterval(3000);
-        adjustSlider->setTickPosition(QSlider::TicksBelow);
-        adjustSlider->setMinimumWidth(150);
-        adjustSlider->setProperty("confirmedDegrees", 0.0);
-        adjustSlider->setToolTip(
-            QStringLiteral("Kéo và nhả để điều chỉnh từ -Bước đến +Bước."));
 
         connect(
             adjustSlider,
@@ -818,64 +855,48 @@ QGroupBox *MainWindow::buildJointGroup(
 
                 const double targetDegrees =
                     static_cast<double>(sliderValue) / 100.0;
-                const double confirmedDegrees =
-                    adjustSlider->property("confirmedDegrees").toDouble();
-                const double deltaDegrees =
-                    targetDegrees - confirmedDegrees;
-
-                if (deltaDegrees == 0.0)
-                {
-                    return;
-                }
-
-                controller_->nudgeJoint(
-                    groupName,
-                    index,
-                    degreesToRadians(deltaDegrees),
-                    minimumTimeSpinBox_->value());
+                submitJointTarget(groupName, index, targetDegrees);
             });
 
-        // Keep the old controls out of the layout while preserving their
-        // existing objects/connections for compatibility with this UI code.
-        minusButton->hide();
-        plusButton->hide();
+        // ---- Layout ----
 
-        const int row = index + 1;
+        const int row = index;
 
-        layout->addWidget(nameLabel, row, 0);
-        layout->addWidget(valueLabel, row, 1);
-        layout->addWidget(adjustSlider, row, 2, 1, 2);
+        layout->addWidget(nameLabel,    row, 0);
+        layout->addWidget(valueLabel,   row, 1);
+        layout->addWidget(unitLabel,    row, 2);
+        layout->addWidget(minLabel,     row, 3);
+        layout->addWidget(minusButton,  row, 4);
+        layout->addWidget(adjustSlider, row, 5);
+        layout->addWidget(plusButton,   row, 6);
+        layout->addWidget(maxLabel,     row, 7);
 
         labels.push_back(valueLabel);
         sliders.push_back(adjustSlider);
     }
 
-    // Keep short groups (e.g. Head) aligned to the top when the adjacent
-    // group is taller.  The remaining height is reserved below the rows.
-    layout->setRowStretch(jointCount + 1, 1);
+    // Keep corresponding joint rows aligned at the top, even for Head,
+    // whose symmetric box has the same height as the six-joint Torso box.
+    layout->setRowStretch(jointCount, 1);
 
-    jointValueLabels_.insert(
-        groupName,
-        labels);
-
-    jointSliders_.insert(
-        groupName,
-        sliders);
+    jointValueLabels_.insert(groupName, labels);
+    jointConfirmedDegrees_.insert(groupName, QVector<double>(jointCount, qQNaN()));
+    jointSliders_.insert(groupName, sliders);
 
     return groupBox;
 }
 
 void MainWindow::connectSignals()
 {
+    connect(controller_, &RobotController::jointMotionFailed,
+        this, &MainWindow::showJointMotionError);
     connect(
         connectButton_,
         &QPushButton::clicked,
         this,
         [this]()
         {
-            if (
-                connectionStatusLabel_->text()
-                    .contains(QStringLiteral("Đã kết nối")))
+            if (controllerConnected_)
             {
                 controller_->disconnectFromBridge();
             }
@@ -912,44 +933,28 @@ void MainWindow::connectSignals()
         powerSwitch_,
         &ToggleSwitch::clicked,
         this,
-        [this](bool checked)
+        [this](bool)
         {
-            if (!checked)
-            {
-                // Reflect the dependency immediately while the three OFF
-                // commands are being acknowledged by the bridge.
-                applySystemConfiguration(
-                    false,
-                    false,
-                    false);
-            }
-
-            controller_->setPower(checked);
+            controller_->togglePower();
         });
 
     connect(
         servoSwitch_,
         &ToggleSwitch::clicked,
         this,
-        [this](bool checked)
+        [this](bool)
         {
-            controller_->setServo(checked);
+            controller_->toggleServo();
         });
 
     connect(
         streamSwitch_,
         &ToggleSwitch::clicked,
         this,
-        [this](bool checked)
+        [this](bool)
         {
-            controller_->setStream(checked);
+            controller_->toggleStream();
         });
-
-    connect(
-        cancelButton_,
-        &QPushButton::clicked,
-        controller_,
-        &RobotController::cancelControl);
 
     connect(
         forwardButton_,
@@ -1146,7 +1151,13 @@ void MainWindow::connectSignals()
                 return;
             }
 
-            if (operationName == QStringLiteral("Đọc trạng thái"))
+            // Joint snapshots arrive continuously; do not flood the log.
+            if (operationName == QStringLiteral("Joints status"))
+            {
+                return;
+            }
+
+            if (operationName == QStringLiteral("Status"))
             {
                 updateRobotStatus(response);
                 appendLog(compactStatusText(response));
@@ -1172,14 +1183,34 @@ void MainWindow::applyControllerState(
     bool canChangeSystemConfiguration,
     bool busy)
 {
+    if (QThread::currentThread() != thread())
+    {
+        QMetaObject::invokeMethod(
+            this,
+            [this,
+             stateName,
+             connected,
+             canDrive,
+             canControlJoints,
+             canChangeSystemConfiguration,
+             busy]()
+            {
+                applyControllerState(
+                    stateName,
+                    connected,
+                    canDrive,
+                    canControlJoints,
+                    canChangeSystemConfiguration,
+                    busy);
+            },
+            Qt::QueuedConnection);
+        return;
+    }
+
     controllerConnected_ = connected;
     canChangeSystemConfiguration_ =
         canChangeSystemConfiguration;
     controllerBusy_ = busy;
-
-    stateLabel_->setText(
-        QStringLiteral("State: %1")
-            .arg(stateName));
 
     robotControllerStateValueLabel_->setText(stateName);
     robotReadyValueLabel_->setText(
@@ -1202,15 +1233,21 @@ void MainWindow::applyControllerState(
 
     if (!connected)
     {
+        for (auto it = jointConfirmedDegrees_.begin(); it != jointConfirmedDegrees_.end(); ++it)
+        {
+            it->fill(qQNaN());
+        }
+        for (const auto &editors : jointValueLabels_)
+        {
+            for (JointAngleEdit *editor : editors)
+            {
+                editor->clearConfirmedDegrees();
+            }
+        }
         robotBridgeStateValueLabel_->setText(QStringLiteral("—"));
         robotLastUpdateValueLabel_->setText(QStringLiteral("—"));
         robotMessageValueLabel_->setText(QStringLiteral("—"));
     }
-
-    connectionStatusLabel_->setText(
-        connected
-            ? QStringLiteral("Kết nối: Đã kết nối bridge")
-            : QStringLiteral("Kết nối: Chưa kết nối"));
 
     connectButton_->setText(
         connected
@@ -1220,8 +1257,6 @@ void MainWindow::applyControllerState(
     pingButton_->setEnabled(connected);
 
     updateSystemSwitchAvailability();
-
-    cancelButton_->setEnabled(connected);
 
     driveGroup_->setEnabled(
         connected && canDrive && !busy);
@@ -1238,38 +1273,83 @@ void MainWindow::applyControllerState(
 }
 
 void MainWindow::applySystemConfiguration(
-    bool powerEnabled,
-    bool servoEnabled,
-    bool streamEnabled)
+    const SystemConfigurationView &configuration)
 {
-    powerEnabled_ = powerEnabled;
+    if (QThread::currentThread() != thread())
+    {
+        const SystemConfigurationView copy = configuration;
+        QMetaObject::invokeMethod(
+            this,
+            [this, copy]() { applySystemConfiguration(copy); },
+            Qt::QueuedConnection);
+        return;
+    }
 
-    powerSwitch_->blockSignals(true);
-    servoSwitch_->blockSignals(true);
-    streamSwitch_->blockSignals(true);
+    systemConfiguration_ = configuration;
 
-    powerSwitch_->setChecked(powerEnabled);
-    servoSwitch_->setChecked(
-        powerEnabled && servoEnabled);
-    streamSwitch_->setChecked(
-        powerEnabled && streamEnabled);
-
-    powerSwitch_->blockSignals(false);
-    servoSwitch_->blockSignals(false);
-    streamSwitch_->blockSignals(false);
-
-    robotPowerValueLabel_->setText(
-        powerEnabled ? QStringLiteral("Bật") : QStringLiteral("Tắt"));
-    robotServoValueLabel_->setText(
-        powerEnabled && servoEnabled
-            ? QStringLiteral("Bật")
-            : QStringLiteral("Tắt"));
-    robotStreamValueLabel_->setText(
-        powerEnabled && streamEnabled
-            ? QStringLiteral("Bật")
-            : QStringLiteral("Tắt"));
+    applyComponentView(
+        powerSwitch_,
+        robotPowerValueLabel_,
+        QStringLiteral("Power"),
+        configuration.power);
+    applyComponentView(
+        servoSwitch_,
+        robotServoValueLabel_,
+        QStringLiteral("Servo"),
+        configuration.servo);
+    applyComponentView(
+        streamSwitch_,
+        robotStreamValueLabel_,
+        QStringLiteral("Stream"),
+        configuration.stream);
 
     updateSystemSwitchAvailability();
+}
+
+void MainWindow::applyComponentView(
+    ToggleSwitch *toggle,
+    QLabel *statusLabel,
+    const QString &name,
+    const ComponentViewState &component)
+{
+    const QString stateText = componentStateText(component.state);
+    const QSignalBlocker blocker(toggle);
+
+    // checked always reflects the last confirmed status, never the requested
+    // target. In particular it does not flip optimistically while pending.
+    toggle->setChecked(component.confirmedState == ComponentState::On);
+    toggle->setComponentState(component.state);
+    toggle->setText(QStringLiteral("%1: %2").arg(name, stateText));
+
+    const QString sourceText = component.source.isEmpty()
+        ? QStringLiteral("source unavailable")
+        : component.legacy
+            ? QStringLiteral("legacy source")
+            : component.source;
+    toggle->setToolTip(
+        QStringLiteral("%1; confirmed by %2").arg(stateText, sourceText));
+
+    statusLabel->setText(
+        component.legacy
+            ? QStringLiteral("%1 [legacy]").arg(stateText)
+            : stateText);
+
+    QString color = QStringLiteral("#686868");
+    if (component.state == ComponentState::On)
+    {
+        color = QStringLiteral("#167a35");
+    }
+    else if (component.state == ComponentState::Off)
+    {
+        color = QStringLiteral("#7a2525");
+    }
+    else if (isPendingComponentState(component.state))
+    {
+        color = QStringLiteral("#9a6700");
+    }
+
+    statusLabel->setStyleSheet(
+        QStringLiteral("color:%1;font-weight:600;").arg(color));
 }
 
 void MainWindow::updateSystemSwitchAvailability()
@@ -1279,19 +1359,67 @@ void MainWindow::updateSystemSwitchAvailability()
         && canChangeSystemConfiguration_
         && !controllerBusy_;
 
-    prepareButton_->setEnabled(
-        configurationAvailable);
+    const auto stable =
+        [](const ComponentViewState &component)
+        {
+            return isConfirmedComponentState(component.state)
+                && isConfirmedComponentState(component.confirmedState);
+        };
 
-    powerSwitch_->setEnabled(configurationAvailable);
+    const bool powerPending =
+        isPendingComponentState(systemConfiguration_.power.state);
+    const bool servoPending =
+        isPendingComponentState(systemConfiguration_.servo.state);
+    const bool streamPending =
+        isPendingComponentState(systemConfiguration_.stream.state);
+
+    prepareButton_->setEnabled(
+        configurationAvailable
+        && stable(systemConfiguration_.power)
+        && stable(systemConfiguration_.servo)
+        && stable(systemConfiguration_.stream)
+        && !powerPending
+        && !servoPending
+        && !streamPending);
+
+    powerSwitch_->setEnabled(
+        configurationAvailable
+        && stable(systemConfiguration_.power)
+        && !servoPending
+        && !streamPending);
+
+    const bool powerConfirmedOn =
+        systemConfiguration_.power.confirmedState == ComponentState::On;
+
     servoSwitch_->setEnabled(
-        configurationAvailable && powerEnabled_);
+        configurationAvailable
+        && stable(systemConfiguration_.servo)
+        && !powerPending
+        && (powerConfirmedOn
+            || systemConfiguration_.servo.confirmedState
+                == ComponentState::On));
+
     streamSwitch_->setEnabled(
-        configurationAvailable && powerEnabled_);
+        configurationAvailable
+        && stable(systemConfiguration_.stream)
+        && !powerPending
+        && (powerConfirmedOn
+            || systemConfiguration_.stream.confirmedState
+                == ComponentState::On));
 }
 
 void MainWindow::appendLog(
     const QString &message)
 {
+    if (QThread::currentThread() != thread())
+    {
+        QMetaObject::invokeMethod(
+            this,
+            [this, message]() { appendLog(message); },
+            Qt::QueuedConnection);
+        return;
+    }
+
     const QString time =
         QDateTime::currentDateTime()
             .toString(QStringLiteral("HH:mm:ss"));
@@ -1304,6 +1432,15 @@ void MainWindow::appendLog(
 void MainWindow::updateRobotStatus(
     const QJsonObject &response)
 {
+    if (QThread::currentThread() != thread())
+    {
+        QMetaObject::invokeMethod(
+            this,
+            [this, response]() { updateRobotStatus(response); },
+            Qt::QueuedConnection);
+        return;
+    }
+
     const QJsonObject status =
         response.value(QStringLiteral("status")).toObject();
 
@@ -1321,26 +1458,6 @@ void MainWindow::updateRobotStatus(
                     : statusValueText(value));
         };
 
-    const auto setBooleanValue =
-        [&response, &status](
-            QLabel *label,
-            const QStringList &keys,
-            const QString &enabledText,
-            const QString &disabledText)
-        {
-            const QJsonValue value =
-                findStatusValue(response, status, keys);
-
-            if (!value.isBool())
-            {
-                label->setText(QStringLiteral("—"));
-                return;
-            }
-
-            label->setText(
-                value.toBool() ? enabledText : disabledText);
-        };
-
     setTextValue(
         robotBridgeStateValueLabel_,
         {
@@ -1348,37 +1465,6 @@ void MainWindow::updateRobotStatus(
             QStringLiteral("robot_state"),
             QStringLiteral("control_state")
         });
-
-    setBooleanValue(
-        robotPowerValueLabel_,
-        {
-            QStringLiteral("power"),
-            QStringLiteral("power_on"),
-            QStringLiteral("powered")
-        },
-        QStringLiteral("Bật"),
-        QStringLiteral("Tắt"));
-
-    setBooleanValue(
-        robotServoValueLabel_,
-        {
-            QStringLiteral("servo"),
-            QStringLiteral("servo_on"),
-            QStringLiteral("servo_enabled")
-        },
-        QStringLiteral("Bật"),
-        QStringLiteral("Tắt"));
-
-    setBooleanValue(
-        robotStreamValueLabel_,
-        {
-            QStringLiteral("stream"),
-            QStringLiteral("stream_on"),
-            QStringLiteral("streaming"),
-            QStringLiteral("stream_enabled")
-        },
-        QStringLiteral("Bật"),
-        QStringLiteral("Tắt"));
 
     setTextValue(
         robotMessageValueLabel_,
@@ -1395,6 +1481,15 @@ void MainWindow::updateRobotStatus(
 void MainWindow::updateJointDisplay(
     const QJsonObject &response)
 {
+    if (QThread::currentThread() != thread())
+    {
+        QMetaObject::invokeMethod(
+            this,
+            [this, response]() { updateJointDisplay(response); },
+            Qt::QueuedConnection);
+        return;
+    }
+
     QJsonObject groupsObject;
 
     if (
@@ -1465,7 +1560,7 @@ void MainWindow::updateJointDisplay(
             continue;
         }
 
-        QVector<QLabel *> &labels = it.value();
+        QVector<JointAngleEdit *> &labels = it.value();
 
         auto sliderIt =
             jointSliders_.find(groupName);
@@ -1486,30 +1581,81 @@ void MainWindow::updateJointDisplay(
 
         for (int index = 0; index < count; ++index)
         {
+            if (!positions.at(index).isDouble()
+                || !qIsFinite(positions.at(index).toDouble()))
+            {
+                continue;
+            }
+
             const double degrees =
                 radiansToDegrees(
                     positions.at(index).toDouble());
 
-            labels[index]->setText(
-                QStringLiteral("%1 \u00B0")
-                    .arg(
-                        degrees,
-                        0,
-                        'f',
-                        2));
+            jointConfirmedDegrees_[groupName][index] = degrees;
+            labels[index]->updateConfirmedDegrees(degrees);
 
             sliders[index]->setProperty(
                 "confirmedDegrees",
                 degrees);
 
+            if (sliders[index]->isSliderDown())
+            {
+                continue;
+            }
+
+            const QSignalBlocker blocker(sliders[index]);
+
             const int center =
                 static_cast<int>(degrees * 100.0);
-            const int span =
-                static_cast<int>(jointStepSpinBox_->value() * 100.0);
-            sliders[index]->setRange(center - span, center + span);
+            const JointLimits limits =
+                manualJointLimits(groupName, index);
+            sliders[index]->setRange(
+                static_cast<int>(limits.minimumDegrees * 100.0),
+                static_cast<int>(limits.maximumDegrees * 100.0));
             sliders[index]->setValue(center);
         }
     }
+}
+
+void MainWindow::submitJointTarget(
+    const QString &groupName, int jointIndex, double targetDegrees)
+{
+    const JointLimits limits = manualJointLimits(groupName, jointIndex);
+    if (!qIsFinite(targetDegrees)
+        || targetDegrees < limits.minimumDegrees
+        || targetDegrees > limits.maximumDegrees)
+    {
+        showJointMotionError(QStringLiteral("Góc %1 khớp %2 phải nằm trong [%3, %4]°.")
+            .arg(groupName).arg(jointIndex + 1)
+            .arg(limits.minimumDegrees).arg(limits.maximumDegrees));
+        return;
+    }
+    const auto positions = jointConfirmedDegrees_.constFind(groupName);
+    if (positions == jointConfirmedDegrees_.cend()
+        || jointIndex < 0 || jointIndex >= positions->size()
+        || !qIsFinite(positions->at(jointIndex)))
+    {
+        showJointMotionError(QStringLiteral("Chưa có góc khớp được xác nhận từ robot. Vui lòng chờ cập nhật."));
+        controller_->refreshJoints();
+        return;
+    }
+    const double deltaDegrees = targetDegrees - positions->at(jointIndex);
+    if (qAbs(deltaDegrees) < 1e-6)
+    {
+        return;
+    }
+    controller_->nudgeJoint(groupName, jointIndex,
+        degreesToRadians(deltaDegrees), minimumTimeSpinBox_->value());
+}
+
+void MainWindow::showJointMotionError(const QString &message)
+{
+    // Non-blocking modal dialog keeps TCP reads and status timers running.
+    auto *dialog = new QMessageBox(QMessageBox::Warning,
+        QStringLiteral("Không thể thay đổi góc khớp"), message, QMessageBox::Ok, this);
+    dialog->setObjectName(QStringLiteral("jointMotionErrorDialog"));
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->open();
 }
 
 void MainWindow::closeEvent(

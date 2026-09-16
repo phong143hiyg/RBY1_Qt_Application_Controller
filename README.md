@@ -2,6 +2,14 @@
 
 Bản này refactor Mốc 4 sang **State Pattern**.
 
+## Nhập góc khớp
+
+- Các ô màu xanh hiển thị góc thực tế theo độ (°), đọc từ App Bridge mỗi 500 ms.
+- Bấm vào ô để nhập góc đích tuyệt đối, rồi nhấn Enter để gửi lệnh. Thời gian chuyển động dùng giá trị ở ô **Thời gian**; xử lý chuyển động giống kéo và nhả slider.
+- Trong lúc ô có focus, giá trị đang nhập không bị timer ghi đè. Bấm ra ngoài mà chưa Enter sẽ bỏ bản nháp và hiển thị lại góc robot báo gần nhất, sau đó tiếp tục cập nhật.
+- Enter không tự đặt góc hiển thị thành góc đích: chỉ snapshot từ robot cập nhật giá trị xác nhận.
+- Giá trị không hợp lệ, ngoài giới hạn thủ công, lệnh bị từ chối, timeout hoặc mất kết nối trong lúc chuyển động sẽ có popup thông báo. Không tự gửi lại lệnh thất bại.
+
 ## Kiến trúc
 
 ```text

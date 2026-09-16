@@ -2,7 +2,9 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1DesktopQt_autogen/moc_predefs.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/QHash \
   C:/Qt/6.11.1/mingw_64/include/QtCore/QJsonObject \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/QMetaType \
   C:/Qt/6.11.1/mingw_64/include/QtCore/QString \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/QStringList \
   C:/Qt/6.11.1/mingw_64/include/QtCore/QVector \
   C:/Qt/6.11.1/mingw_64/include/QtCore/q17memory.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/q20bit.h \
@@ -391,4 +393,5 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/sys/types.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/time.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h \
-  C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h
+  C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h \
+  C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/model/SystemStatus.hpp

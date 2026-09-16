@@ -11,6 +11,19 @@ ToggleSwitch::ToggleSwitch(const QString& text, QWidget* parent) : QCheckBox(tex
     setCursor(Qt::PointingHandCursor);
 }
 
+void ToggleSwitch::setComponentState(ComponentState state) {
+    if (componentState_ == state) {
+        return;
+    }
+
+    componentState_ = state;
+    update();
+}
+
+ComponentState ToggleSwitch::componentState() const {
+    return componentState_;
+}
+
 void ToggleSwitch::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event);
 
@@ -31,13 +44,28 @@ void ToggleSwitch::paintEvent(QPaintEvent* event) {
     trackPath.addRoundedRect(trackRect, trackHeight / 2.0, trackHeight / 2.0);
     
     p.setPen(Qt::NoPen);
-    if (!isEnabled()) {
-        p.setBrush(QColor("#D0D0D0"));
-    } else if (isChecked()) {
-        p.setBrush(QColor("#4CAF50")); // Green
-    } else {
-        p.setBrush(QColor("#B0B0B0")); // Gray
+    QColor trackColor;
+    switch (componentState_) {
+    case ComponentState::On:
+        trackColor = QColor("#2EAD55");
+        break;
+    case ComponentState::PendingOn:
+    case ComponentState::PendingOff:
+        trackColor = QColor("#E5A000");
+        break;
+    case ComponentState::Off:
+        trackColor = QColor("#737B84");
+        break;
+    case ComponentState::Unknown:
+    default:
+        trackColor = QColor("#A6A6A6");
+        break;
     }
+
+    if (!isEnabled()) {
+        trackColor.setAlpha(155);
+    }
+    p.setBrush(trackColor);
     p.drawPath(trackPath);
 
     // Draw thumb

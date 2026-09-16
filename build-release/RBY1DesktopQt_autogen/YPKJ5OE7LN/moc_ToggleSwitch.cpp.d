@@ -1,5 +1,9 @@
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1DesktopQt_autogen/YPKJ5OE7LN/moc_ToggleSwitch.cpp: C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/ui/ToggleSwitch.hpp \
   C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1DesktopQt_autogen/moc_predefs.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/QJsonObject \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/QMetaType \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/QString \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/QStringList \
   C:/Qt/6.11.1/mingw_64/include/QtCore/q17memory.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/q20bit.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/q20functional.h \
@@ -24,6 +28,9 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Qt/6.11.1/mingw_64/include/QtCore/qbytearrayalgorithms.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qbytearraylist.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qbytearrayview.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qcalendar.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qcborcommon.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qcborvalue.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qchar.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qcheckedint_impl.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qcompare.h \
@@ -38,6 +45,7 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Qt/6.11.1/mingw_64/include/QtCore/qcontiguouscache.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qdarwinhelpers.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qdatastream.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qdatetime.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qdebug.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qendian.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qexceptionhandling.h \
@@ -54,9 +62,14 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Qt/6.11.1/mingw_64/include/QtCore/qiodevicebase.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qiterable.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qiterator.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qjsondocument.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qjsonobject.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qjsonparseerror.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qjsonvalue.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qlatin1stringview.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qline.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qlist.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qlocale.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qlogging.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qmalloc.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qmap.h \
@@ -77,6 +90,7 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Qt/6.11.1/mingw_64/include/QtCore/qprocessordetection.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qrect.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qrefcount.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qregularexpression.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qscopedpointer.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qscopeguard.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qset.h \
@@ -122,7 +136,9 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Qt/6.11.1/mingw_64/include/QtCore/qtversionchecks.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qtypeinfo.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qtypes.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/qurl.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qutf8stringview.h \
+  C:/Qt/6.11.1/mingw_64/include/QtCore/quuid.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qvariant.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qvarlengtharray.h \
   C:/Qt/6.11.1/mingw_64/include/QtCore/qversiontagging.h \
@@ -375,4 +391,5 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-release/RBY1De
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/sys/types.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/time.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h \
-  C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h
+  C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h \
+  C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/model/SystemStatus.hpp

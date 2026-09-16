@@ -1,5 +1,7 @@
 #pragma once
 
+#include "model/SystemStatus.hpp"
+
 #include <QHash>
 #include <QJsonObject>
 #include <QMainWindow>
@@ -17,6 +19,7 @@ class QTabWidget;
 class QTextEdit;
 class QWidget;
 class ToggleSwitch;
+class JointAngleEdit;
 
 class RobotController;
 
@@ -52,9 +55,13 @@ private:
         bool busy);
 
     void applySystemConfiguration(
-        bool powerEnabled,
-        bool servoEnabled,
-        bool streamEnabled);
+        const SystemConfigurationView &configuration);
+
+    void applyComponentView(
+        ToggleSwitch *toggle,
+        QLabel *statusLabel,
+        const QString &name,
+        const ComponentViewState &component);
 
     void updateSystemSwitchAvailability();
 
@@ -67,10 +74,10 @@ private:
     void updateRobotStatus(
         const QJsonObject &response);
 
-    RobotController *controller_{nullptr};
+    void submitJointTarget(const QString &groupName, int jointIndex, double targetDegrees);
+    void showJointMotionError(const QString &message);
 
-    QLabel *connectionStatusLabel_{nullptr};
-    QLabel *stateLabel_{nullptr};
+    RobotController *controller_{nullptr};
 
     QPushButton *connectButton_{nullptr};
     QPushButton *pingButton_{nullptr};
@@ -80,7 +87,6 @@ private:
     ToggleSwitch *powerSwitch_{nullptr};
     ToggleSwitch *servoSwitch_{nullptr};
     ToggleSwitch *streamSwitch_{nullptr};
-    QPushButton *cancelButton_{nullptr};
 
     QPushButton *forwardButton_{nullptr};
     QPushButton *backwardButton_{nullptr};
@@ -96,7 +102,6 @@ private:
     QPushButton *goReadyButton_{nullptr};
     QPushButton *clearReadyButton_{nullptr};
 
-    QDoubleSpinBox *jointStepSpinBox_{nullptr};
     QDoubleSpinBox *minimumTimeSpinBox_{nullptr};
 
     QGroupBox *systemGroup_{nullptr};
@@ -114,7 +119,8 @@ private:
     QLabel *robotLastUpdateValueLabel_{nullptr};
     QLabel *robotMessageValueLabel_{nullptr};
 
-    QHash<QString, QVector<QLabel *>> jointValueLabels_;
+    QHash<QString, QVector<JointAngleEdit *>> jointValueLabels_;
+    QHash<QString, QVector<double>> jointConfirmedDegrees_;
     QHash<QString, QVector<QSlider *>> jointSliders_;
 
     QTabWidget *tabWidget_{nullptr};
@@ -124,5 +130,5 @@ private:
     bool controllerConnected_{false};
     bool canChangeSystemConfiguration_{false};
     bool controllerBusy_{false};
-    bool powerEnabled_{false};
+    SystemConfigurationView systemConfiguration_;
 };

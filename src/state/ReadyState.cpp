@@ -5,6 +5,14 @@
 #include "state/JointBusyState.hpp"
 #include "state/PreparingState.hpp"
 
+#include <QtMath>
+
+namespace
+{
+constexpr double kMaxNudgeDeltaRadians = 0.20;
+constexpr double kMinimumSegmentTimeSeconds = 0.20;
+}
+
 std::unique_ptr<RobotState> ReadyState::prepare(
     RobotController &controller)
 {
@@ -43,20 +51,51 @@ std::unique_ptr<RobotState> ReadyState::nudgeJoint(
 {
     controller.stopVelocityInternal();
 
-    const bool sent =
+    const int segmentCount = qMax(
+        1,
+        qCeil(qAbs(delta) / kMaxNudgeDeltaRadians));
+    const double segmentMinimumTime = qMax(
+        kMinimumSegmentTimeSeconds,
+        qMax(0.0, minimumTime)
+            / static_cast<double>(segmentCount));
+
+    const double firstDelta =
+        delta > kMaxNudgeDeltaRadians
+            ? kMaxNudgeDeltaRadians
+            : delta < -kMaxNudgeDeltaRadians
+                ? -kMaxNudgeDeltaRadians
+                : delta;
+
+    const quint64 requestId =
         controller.sendJointNudgeInternal(
             groupName,
             jointIndex,
-            delta,
-            minimumTime);
+            firstDelta,
+            segmentMinimumTime);
 
-    if (!sent)
+    if (requestId == 0)
     {
+        controller.reportJointMotionFailure(QStringLiteral("Không gửi được lệnh thay đổi góc khớp tới App Bridge."));
         return nullptr;
     }
 
+    const double remainingDelta =
+        delta - firstDelta;
+
+    if (remainingDelta > 1e-9 || remainingDelta < -1e-9)
+    {
+        return std::make_unique<JointBusyState>(
+            QStringLiteral("Joint nudge"),
+            requestId,
+            groupName,
+            jointIndex,
+            remainingDelta,
+            segmentMinimumTime);
+    }
+
     return std::make_unique<JointBusyState>(
-        QStringLiteral("Joint nudge"));
+        QStringLiteral("Joint nudge"),
+        requestId);
 }
 
 std::unique_ptr<RobotState> ReadyState::sendPose(
@@ -67,17 +106,18 @@ std::unique_ptr<RobotState> ReadyState::sendPose(
 {
     controller.stopVelocityInternal();
 
-    const bool sent =
+    const quint64 requestId =
         controller.sendPoseInternal(
             command,
             operationName,
             minimumTime);
 
-    if (!sent)
+    if (requestId == 0)
     {
         return nullptr;
     }
 
     return std::make_unique<JointBusyState>(
-        operationName);
+        operationName,
+        requestId);
 }
