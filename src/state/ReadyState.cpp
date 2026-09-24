@@ -75,7 +75,7 @@ std::unique_ptr<RobotState> ReadyState::nudgeJoint(
 
     if (requestId == 0)
     {
-        controller.reportJointMotionFailure(QStringLiteral("Không gửi được lệnh thay đổi góc khớp tới App Bridge."));
+        controller.reportJointMotionFailure(QStringLiteral("Không gửi được lệnh thay đổi góc khớp tới Robot SDK."));
         return nullptr;
     }
 

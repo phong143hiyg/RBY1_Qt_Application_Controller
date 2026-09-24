@@ -5,8 +5,16 @@
 
 QVector<NdjsonFrame> NdjsonParser::append(const QByteArray &data)
 {
-    buffer_.append(data);
     QVector<NdjsonFrame> result;
+    QByteArray incoming = data;
+    if (discarding_)
+    {
+        const auto end = incoming.indexOf('\n');
+        if (end < 0) return result;
+        incoming.remove(0, end + 1);
+        discarding_ = false;
+    }
+    buffer_.append(incoming);
 
     while (true)
     {
@@ -14,7 +22,20 @@ QVector<NdjsonFrame> NdjsonParser::append(const QByteArray &data)
 
         if (newlineIndex < 0)
         {
+            if (maxFrameBytes_ > 0 && buffer_.size() > maxFrameBytes_)
+            {
+                buffer_.clear();
+                discarding_ = true;
+                result.push_back({false, {}, QStringLiteral("NDJSON frame exceeds limit")});
+            }
             return result;
+        }
+
+        if (maxFrameBytes_ > 0 && newlineIndex > maxFrameBytes_)
+        {
+            buffer_.remove(0, newlineIndex + 1);
+            result.push_back({false, {}, QStringLiteral("NDJSON frame exceeds limit")});
+            continue;
         }
 
         const QByteArray line = buffer_.left(newlineIndex).trimmed();
@@ -35,7 +56,7 @@ QVector<NdjsonFrame> NdjsonParser::append(const QByteArray &data)
             result.push_back({
                 false,
                 {},
-                QStringLiteral("Invalid bridge JSON: %1")
+                QStringLiteral("Invalid NDJSON frame: %1")
                     .arg(parseError.errorString())
             });
             continue;
@@ -48,6 +69,7 @@ QVector<NdjsonFrame> NdjsonParser::append(const QByteArray &data)
 void NdjsonParser::clear()
 {
     buffer_.clear();
+    discarding_ = false;
 }
 
 QByteArray NdjsonParser::bufferedData() const

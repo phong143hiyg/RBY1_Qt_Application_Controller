@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160">
+<rect x="0" y="0" width="1800" height="1160" fill="white"/>
+<defs>
+<marker id="arrow-15803d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#15803d"/></marker>
+<marker id="arrow-1d4ed8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1d4ed8"/></marker>
+<marker id="arrow-475569" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/></marker>
+<marker id="arrow-7c3aed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/></marker>
+<marker id="arrow-a16207" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a16207"/></marker>
+<marker id="arrow-b91c1c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b91c1c"/></marker>
+</defs>
+<polyline points="194,233 194,340" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-475569)"/>
+<polyline points="310,395 470,395" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-475569)"/>
+<polyline points="750,395 940,395" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-475569)"/>
+<polyline points="1220,395 1430,395" fill="none" stroke="#15803d" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-15803d)"/>
+<polyline points="610,340 610,205 1570,205 1570,340" fill="none" stroke="#15803d" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-15803d)" stroke-dasharray="8 5"/>
+<polyline points="1010,470 1010,525 670,525 670,470" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-b91c1c)"/>
+<polyline points="1490,470 1490,505 1160,505 1160,470" fill="none" stroke="#a16207" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-a16207)"/>
+<polyline points="1460,470 1460,625 530,625 530,470" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-b91c1c)" stroke-dasharray="8 5"/>
+<polyline points="1430,440 1300,440 1300,700 1130,700 1130,740" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-1d4ed8)"/>
+<polyline points="1080,740 1080,675 1350,675 1350,420 1430,420" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-1d4ed8)"/>
+<polyline points="1525,470 1525,740" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-7c3aed)"/>
+<polyline points="1660,740 1660,470" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-7c3aed)"/>
+<polyline points="1000,870 1000,950 1160,950 1160,870" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-1d4ed8)"/>
+<polyline points="1490,870 1490,950 1650,950 1650,870" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow-7c3aed)"/>
+<text x="900.0" y="72.3" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#1e293b">SƠ ĐỒ CHUYỂN TRẠNG THÁI HỆ THỐNG RBY1</text>
+<text x="900.0" y="118.8" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#1e293b">Điều khiển đế và Joint/Pose qua App Bridge • Chưa sử dụng tính quỹ đạo bằng MoveIt 2</text>
+<circle cx="194" cy="219" r="14" fill="#1e293b"/>
+<rect x="80" y="340" width="230" height="130" rx="16" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+<text x="195.0" y="386.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#1e293b">Disconnected</text>
+<text x="195.0" y="410.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Chưa kết nối App Bridge</text>
+<text x="195.0" y="434.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Không cho phép điều khiển</text>
+<rect x="470" y="340" width="280" height="130" rx="16" fill="#ffedd5" stroke="#c2410c" stroke-width="2"/>
+<text x="610.0" y="386.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#1e293b">Connected</text>
+<text x="610.0" y="410.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Đã kết nối App Bridge</text>
+<text x="610.0" y="434.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Cấu hình Power / Servo / Stream</text>
+<rect x="940" y="340" width="280" height="130" rx="16" fill="#fef3c7" stroke="#a16207" stroke-width="2"/>
+<text x="1080.0" y="386.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#1e293b">Preparing</text>
+<text x="1080.0" y="410.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Bật lần lượt:</text>
+<text x="1080.0" y="434.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Power → Servo → Stream</text>
+<rect x="1430" y="340" width="280" height="130" rx="16" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<text x="1570.0" y="386.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#1e293b">Ready</text>
+<text x="1570.0" y="410.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Sẵn sàng điều khiển</text>
+<text x="1570.0" y="434.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Drive / Joint / Pose / cấu hình</text>
+<rect x="940" y="740" width="280" height="130" rx="16" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+<text x="1080.0" y="786.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#1e293b">Driving</text>
+<text x="1080.0" y="810.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Điều khiển vận tốc đế</text>
+<text x="1080.0" y="834.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Gửi velocity lặp mỗi 100 ms</text>
+<rect x="1430" y="740" width="280" height="130" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+<text x="1570.0" y="786.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#1e293b">JointBusy</text>
+<text x="1570.0" y="810.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Chờ kết quả Joint / Pose</text>
+<text x="1570.0" y="834.6" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Khóa lệnh chuyển động mới</text>
+<rect x="80" y="740" width="750" height="270" rx="16" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+<text x="104" y="800.3" text-anchor="start" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#1e293b">QUY TẮC CHUNG</text>
+<text x="104" y="827.3" text-anchor="start" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#1e293b">Cancel tại bất kỳ state đã kết nối → Connected.</text>
+<text x="104" y="854.3" text-anchor="start" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#1e293b">Ngắt hoặc mất kết nối TCP App Bridge → Disconnected.</text>
+<text x="104" y="881.3" text-anchor="start" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#1e293b">Lệnh bị từ chối / gửi Joint-Pose thất bại → giữ state.</text>
+<text x="104" y="908.3" text-anchor="start" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#1e293b">ACK bật Power/Servo/Stream chưa đủ để chuyển Ready.</text>
+<text x="104" y="935.3" text-anchor="start" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#1e293b">Preparing chỉ tiến bước khi status xác nhận thành phần.</text>
+<text x="104" y="962.3" text-anchor="start" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#1e293b">Status nền không tự đổi Driving hoặc JointBusy.</text>
+<rect x="80" y="1060" width="1640" height="55" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+<text x="900.0" y="1081.1" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">JointBusy → Ready giải phóng trạng thái chờ của ứng dụng; timeout không xác nhận robot đã hoàn tất chuyển động.</text>
+<text x="900.0" y="1105.1" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Các mũi tên nét đứt biểu diễn chuyển trạng thái do dữ liệu status.</text>
+<rect x="219.55" y="268" width="90.89999999999999" height="29" rx="4" fill="white"/>
+<text x="265" y="285" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Khởi động</text>
+<rect x="336.45" y="340" width="107.1" height="52" rx="4" fill="white"/>
+<text x="390" y="357" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Kết nối TCP</text>
+<text x="390" y="380" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">thành công</text>
+<rect x="755.0" y="335" width="180.0" height="52" rx="4" fill="white"/>
+<text x="845" y="352" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Prepare hợp lệ</text>
+<text x="845" y="375" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">3 thành phần đã biết</text>
+<rect x="1222.85" y="335" width="204.29999999999998" height="52" rx="4" fill="white"/>
+<text x="1325" y="352" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Status xác nhận cả 3 ON</text>
+<text x="1325" y="375" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">không còn pending</text>
+<rect x="902.8" y="166" width="374.4" height="29" rx="4" fill="white"/>
+<text x="1090" y="183" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Status: ready=true + cả 3 ON + không pending</text>
+<rect x="612.3" y="538" width="455.4" height="29" rx="4" fill="white"/>
+<text x="840" y="555" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Chuẩn bị lỗi / hết thời gian xác nhận / status quá hạn</text>
+<rect x="1210.7" y="516" width="228.6" height="29" rx="4" fill="white"/>
+<text x="1325" y="533" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Prepare lại được chấp nhận</text>
+<rect x="608.4000000000001" y="632" width="763.1999999999999" height="29" rx="4" fill="white"/>
+<text x="990" y="649" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Mất điều kiện Ready: OFF / UNKNOWN / pending / status quá hạn / ready=false / Robot API ngắt</text>
+<rect x="1232.15" y="673" width="155.7" height="52" rx="4" fill="white"/>
+<text x="1310" y="690" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Giữ nút di chuyển</text>
+<text x="1310" y="713" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">startDrive()</text>
+<rect x="1004.3" y="681" width="131.39999999999998" height="52" rx="4" fill="white"/>
+<text x="1070" y="698" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Thả nút / Stop</text>
+<text x="1070" y="721" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">stopDrive()</text>
+<rect x="1374.05" y="685" width="171.9" height="52" rx="4" fill="white"/>
+<text x="1460" y="702" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Joint / Pose</text>
+<text x="1460" y="725" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">gửi lệnh thành công</text>
+<rect x="1525.7" y="568" width="228.6" height="52" rx="4" fill="white"/>
+<text x="1640" y="585" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Kết thúc yêu cầu:</text>
+<text x="1640" y="608" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">thành công / lỗi / timeout</text>
+<rect x="937.35" y="966" width="285.3" height="29" rx="4" fill="white"/>
+<text x="1080" y="983" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Đổi hướng / vận tốc → vẫn Driving</text>
+<rect x="1366.6" y="966" width="406.79999999999995" height="52" rx="4" fill="white"/>
+<text x="1570" y="983" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Còn đoạn nudge → gửi đoạn tiếp theo</text>
+<text x="1570" y="1006" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#1e293b">Response khác request ID / operation → giữ state</text>
+</svg>

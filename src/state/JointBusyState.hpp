@@ -5,6 +5,9 @@
 class JointBusyState final : public RobotState
 {
 public:
+    JointBusyState(quint64 snapshotRequestId, QString groupName, int jointIndex,
+                   double targetRadians, double minimumTime);
+
     JointBusyState(
         QString pendingOperation,
         quint64 pendingRequestId);
@@ -45,4 +48,8 @@ private:
     int jointIndex_{-1};
     double remainingDelta_{0.0};
     double segmentMinimumTime_{0.0};
+    bool absoluteTarget_{false};
+    double targetRadians_{0.0};
+    double requestedMinimumTime_{0.0};
+    int segmentsRemaining_{-1};
 };

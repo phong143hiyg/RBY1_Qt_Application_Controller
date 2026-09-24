@@ -9,10 +9,12 @@
 #include <QVector>
 
 class QCloseEvent;
+class QComboBox;
 class QDialog;
 class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QSlider;
 class QTabWidget;
@@ -75,11 +77,14 @@ private:
         const QJsonObject &response);
 
     void submitJointTarget(const QString &groupName, int jointIndex, double targetDegrees);
+    void submitJointStep(const QString &groupName, int jointIndex, double stepDegrees);
     void showJointMotionError(const QString &message);
 
     RobotController *controller_{nullptr};
 
     QPushButton *connectButton_{nullptr};
+    QComboBox *robotModelComboBox_{nullptr};
+    QLineEdit *robotAddressEdit_{nullptr};
     QPushButton *pingButton_{nullptr};
     QPushButton *logButton_{nullptr};
 
@@ -111,7 +116,7 @@ private:
 
     QLabel *robotConnectionValueLabel_{nullptr};
     QLabel *robotControllerStateValueLabel_{nullptr};
-    QLabel *robotBridgeStateValueLabel_{nullptr};
+    QLabel *robotReportedStateValueLabel_{nullptr};
     QLabel *robotReadyValueLabel_{nullptr};
     QLabel *robotPowerValueLabel_{nullptr};
     QLabel *robotServoValueLabel_{nullptr};

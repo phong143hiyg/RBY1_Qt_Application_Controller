@@ -1,5 +1,7 @@
 # Kế hoạch sử dụng MoveIt 2 để tính quỹ đạo cho RBY1
 
+Hai prompt triển khai cho repository Qt và workspace ROS 2, cùng đặc tả scene test và giao thức planning: [prompts-test-moveit2-rby1.md](prompts-test-moveit2-rby1.md). Tài liệu này là đầu vào triển khai; chưa xác nhận môi trường ROS 2 đã chạy thành công.
+
 > Cập nhật: 11/09/2026  
 > Phạm vi hiện tại: hoàn thành lựa chọn framework và thiết kế môi trường test. Chỉ triển khai các bước tiếp theo sau khi hai bước này đạt tiêu chí nghiệm thu.
 
@@ -449,4 +451,3 @@ MoveIt 2 + cấu hình RBY1 chính thức
 ```
 
 Mốc thực hiện gần nhất không phải tích hợp ngay vào Qt. Trước tiên cần xác nhận đúng model/version RBY1, launch fake hardware thành công, sau đó xây một scene test tái lập được có bàn, vật cản, object, pick pose và place pose. Khi hai mốc này đạt tiêu chí nghiệm thu mới tiếp tục MTC, simulator vật lý và App Bridge.
-

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "model/SystemStatus.hpp"
+#include "network/RobotClient.hpp"
 
 #include <QElapsedTimer>
 #include <QJsonObject>
@@ -10,7 +11,6 @@
 
 #include <memory>
 
-class RobotClient;
 class RobotState;
 
 class RobotController final : public QObject
@@ -21,10 +21,11 @@ public:
     explicit RobotController(QObject *parent = nullptr);
     ~RobotController() override;
 
-    void connectToBridge(
+    void connectToRobot(
         const QString &host = QStringLiteral("127.0.0.1"),
-        quint16 port = 8081);
-    void disconnectFromBridge();
+        quint16 port = 55051,
+        Rby1Model model = Rby1Model::M);
+    void disconnectFromRobot();
 
     void ping();
     void requestStatus();
@@ -56,6 +57,9 @@ public:
         double delta,
         double minimumTime);
 
+    void moveJointTo(const QString &groupName, int jointIndex,
+                     double targetRadians, double minimumTime);
+
     void sendPose(
         const QString &command,
         const QString &operationName,
@@ -80,6 +84,8 @@ public:
         int jointIndex,
         double delta,
         double minimumTime);
+
+    quint64 requestJointSnapshotInternal();
 
     quint64 sendPoseInternal(
         const QString &command,
@@ -121,8 +127,8 @@ private slots:
     void sendVelocityTick();
     void checkTimeoutsAndFreshness();
 
-    void handleBridgeConnected();
-    void handleBridgeDisconnected();
+    void handleRobotConnected();
+    void handleRobotDisconnected();
 
     void handleResponse(
         quint64 requestId,
@@ -189,6 +195,7 @@ private:
         RobotComponent component) const;
 
     RobotClient *client_{nullptr};
+    Rby1Model activeModel_{Rby1Model::M};
     QTimer velocityTimer_;
     QTimer statusTimer_;
     QTimer jointStatusTimer_;

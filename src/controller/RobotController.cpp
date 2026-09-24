@@ -1,9 +1,11 @@
 #include "controller/RobotController.hpp"
 
 #include "network/RobotClient.hpp"
+#include "sdk/SdkRobotClient.hpp"
 
 #include "state/ConnectedState.hpp"
 #include "state/DisconnectedState.hpp"
+#include "state/JointBusyState.hpp"
 #include "state/ReadyState.hpp"
 #include "state/RobotState.hpp"
 
@@ -22,25 +24,10 @@ QString componentName(RobotComponent component)
     case RobotComponent::Servo:
         return QStringLiteral("Servo");
     case RobotComponent::Stream:
-        return QStringLiteral("Stream");
+        return QStringLiteral("Control Manager");
     }
 
     return QStringLiteral("Component");
-}
-
-QString componentCommand(RobotComponent component)
-{
-    switch (component)
-    {
-    case RobotComponent::Power:
-        return QStringLiteral("power");
-    case RobotComponent::Servo:
-        return QStringLiteral("servo");
-    case RobotComponent::Stream:
-        return QStringLiteral("stream");
-    }
-
-    return {};
 }
 
 QString responseError(const QJsonObject &response)
@@ -57,13 +44,13 @@ QString responseError(const QJsonObject &response)
         return error.toString();
     }
 
-    return QStringLiteral("App Bridge rejected the command without an error message");
+    return QStringLiteral("Robot SDK rejected the command without an error message");
 }
 }
 
 RobotController::RobotController(QObject *parent)
     : QObject(parent),
-      client_(new RobotClient(this)),
+      client_(new SdkRobotClient(this)),
       state_(std::make_unique<DisconnectedState>())
 {
     qRegisterMetaType<SystemConfigurationView>();
@@ -100,15 +87,15 @@ RobotController::RobotController(QObject *parent)
 
     connect(
         client_,
-        &RobotClient::bridgeConnected,
+        &RobotClient::robotConnected,
         this,
-        &RobotController::handleBridgeConnected);
+        &RobotController::handleRobotConnected);
 
     connect(
         client_,
-        &RobotClient::bridgeDisconnected,
+        &RobotClient::robotDisconnected,
         this,
-        &RobotController::handleBridgeDisconnected);
+        &RobotController::handleRobotDisconnected);
 
     connect(
         client_,
@@ -129,32 +116,33 @@ RobotController::RobotController(QObject *parent)
         [this](const QString &message)
         {
             emit logMessage(
-                QStringLiteral("TCP error: %1").arg(message));
+                QStringLiteral("Robot connection error: %1").arg(message));
         });
 }
 
 RobotController::~RobotController() = default;
 
-void RobotController::connectToBridge(
+void RobotController::connectToRobot(
     const QString &host,
-    quint16 port)
+    quint16 port,
+    Rby1Model model)
 {
     if (client_->isConnected())
     {
         return;
     }
 
-    emit logMessage(
-        QStringLiteral("Connecting to App Bridge at %1:%2...")
-            .arg(host)
-            .arg(port));
-    client_->connectToBridge(host, port);
+    activeModel_ = model;
+    const QString modelName = model == Rby1Model::M ? QStringLiteral("M") : QStringLiteral("A");
+    emit logMessage(QStringLiteral("Connecting to RBY1-%1 using SDK at %2:%3...")
+                        .arg(modelName, host).arg(port));
+    client_->connectToRobot(host, port, model);
 }
 
-void RobotController::disconnectFromBridge()
+void RobotController::disconnectFromRobot()
 {
     stopVelocityInternal();
-    client_->disconnectFromBridge();
+    client_->disconnectFromRobot();
 }
 
 void RobotController::ping()
@@ -174,12 +162,7 @@ void RobotController::requestStatus()
         return;
     }
 
-    statusRequestPendingId_ = client_->sendCommand(
-        QJsonObject{
-            {QStringLiteral("command"), QStringLiteral("status")}
-        },
-        QStringLiteral("Status"),
-        kCommandTimeoutMs);
+    statusRequestPendingId_ = client_->readStatus(kCommandTimeoutMs);
 }
 
 void RobotController::forceStatusRefresh()
@@ -319,7 +302,7 @@ bool RobotController::requestComponentTarget(
             || isPendingComponentState(stream_.remoteState)))
     {
         rejectAction(
-            QStringLiteral("Power cannot change while Servo or Stream is pending."));
+            QStringLiteral("Power cannot change while Servo or Control Manager is pending."));
         emitSystemConfiguration();
         return false;
     }
@@ -349,13 +332,8 @@ bool RobotController::requestComponentTarget(
                 componentName(component),
                 enabled ? QStringLiteral("ON") : QStringLiteral("OFF"));
 
-    const quint64 requestId = client_->sendCommand(
-        QJsonObject{
-            {QStringLiteral("command"), componentCommand(component)},
-            {QStringLiteral("enabled"), enabled}
-        },
-        operationName,
-        kCommandTimeoutMs);
+    const quint64 requestId = client_->setComponent(
+        component, enabled, operationName, kCommandTimeoutMs);
 
     if (requestId == 0)
     {
@@ -413,10 +391,7 @@ void RobotController::refreshJoints()
         return;
     }
 
-    jointStatusRequestPendingId_ = client_->sendCommand(
-        QJsonObject{{QStringLiteral("command"), QStringLiteral("joints_status")}},
-        QStringLiteral("Joints status"),
-        kCommandTimeoutMs);
+    jointStatusRequestPendingId_ = client_->readJoints(kCommandTimeoutMs);
 }
 
 void RobotController::nudgeJoint(
@@ -441,6 +416,34 @@ void RobotController::nudgeJoint(
             minimumTime));
 }
 
+void RobotController::moveJointTo(const QString &groupName, int jointIndex,
+                                double targetRadians, double minimumTime)
+{
+    if (!client_->isConnected() || !state_->canControlJoints()
+        || !qIsFinite(targetRadians) || !qIsFinite(minimumTime)
+        || minimumTime < 0.0 || jointIndex < 0)
+    {
+        reportJointMotionFailure(QStringLiteral("Robot is not ready or the joint target is invalid."));
+        return;
+    }
+    stopVelocityInternal();
+    // Read a new snapshot, rather than deriving a relative move from the
+    // UI's previous poll. Subsequent segments also use measured positions.
+    const quint64 requestId = requestJointSnapshotInternal();
+    if (requestId == 0)
+    {
+        reportJointMotionFailure(QStringLiteral("Could not read the joint position before moving."));
+        return;
+    }
+    applyTransition(std::make_unique<JointBusyState>(
+        requestId, groupName, jointIndex, targetRadians, minimumTime));
+}
+
+quint64 RobotController::requestJointSnapshotInternal()
+{
+    return client_->readJoints(kCommandTimeoutMs);
+}
+
 void RobotController::sendPose(
     const QString &command,
     const QString &operationName,
@@ -458,20 +461,14 @@ bool RobotController::sendSimpleInternal(
     const QString &command,
     const QString &operationName)
 {
-    return client_->sendCommand(
-               QJsonObject{
-                   {QStringLiteral("command"), command}
-               },
-               operationName,
-               kCommandTimeoutMs)
-        != 0;
+    return client_->executeSimple(command, operationName, kCommandTimeoutMs) != 0;
 }
 
 bool RobotController::beginPreparationInternal()
 {
     if (!state_->isConnected())
     {
-        rejectAction(QStringLiteral("Not connected to App Bridge."));
+        rejectAction(QStringLiteral("Not connected to the robot SDK endpoint."));
         return false;
     }
 
@@ -480,7 +477,7 @@ bool RobotController::beginPreparationInternal()
         || !isConfirmedComponentState(stream_.confirmed))
     {
         rejectAction(
-            QStringLiteral("Cannot prepare until Power, Servo, and Stream are known."));
+            QStringLiteral("Cannot prepare until Power, Servo, and Control Manager are known."));
         forceStatusRefresh();
         return false;
     }
@@ -525,7 +522,7 @@ void RobotController::continuePreparation()
     {
         if (!requestComponentTarget(RobotComponent::Stream, true, true))
         {
-            abortPreparation(QStringLiteral("Stream could not be enabled."));
+            abortPreparation(QStringLiteral("Control Manager could not be enabled."));
         }
         return;
     }
@@ -600,23 +597,13 @@ quint64 RobotController::sendJointNudgeInternal(
         static_cast<int>(qCeil(qMax(0.0, minimumTime) * 1000.0))
             + 2000);
 
-    const quint64 requestId = client_->sendCommand(
-        QJsonObject{
-            {QStringLiteral("command"), QStringLiteral("joint_nudge")},
-            {QStringLiteral("group"), groupName},
-            {QStringLiteral("joint_index"), jointIndex},
-            {QStringLiteral("delta"), delta},
-            {QStringLiteral("minimum_time"), minimumTime}
-        },
-        QStringLiteral("Joint nudge"),
-        timeoutMs);
+    const quint64 requestId = client_->moveJointRelative(
+        groupName, jointIndex, delta, minimumTime, timeoutMs);
 
     if (requestId != 0)
     {
-        // The bridge may serialize Robot API calls and therefore be unable to
-        // answer status polling while this long-running motion is executing.
-        // Keep the last canonical status only for the bounded request window;
-        // a real status response can still update it at any time.
+        // SDK motion and status calls share a worker thread. Keep the last
+        // status during the bounded request window if motion polling is delayed.
         extendStatusFreshnessGrace(
             timeoutMs + kPostMotionStatusGraceMs);
     }
@@ -634,13 +621,8 @@ quint64 RobotController::sendPoseInternal(
         static_cast<int>(qCeil(qMax(0.0, minimumTime) * 1000.0))
             + 2000);
 
-    const quint64 requestId = client_->sendCommand(
-        QJsonObject{
-            {QStringLiteral("command"), command},
-            {QStringLiteral("minimum_time"), minimumTime}
-        },
-        operationName,
-        timeoutMs);
+    const quint64 requestId = client_->executePose(
+        command, operationName, minimumTime, timeoutMs);
 
     if (requestId != 0)
     {
@@ -681,18 +663,10 @@ void RobotController::sendVelocityTick()
         return;
     }
 
-    client_->sendCommand(
-        QJsonObject{
-            {QStringLiteral("command"), QStringLiteral("velocity")},
-            {QStringLiteral("linear_x"), linearX_},
-            {QStringLiteral("linear_y"), linearY_},
-            {QStringLiteral("angular_z"), angularZ_}
-        },
-        QStringLiteral("Velocity"),
-        0);
+    client_->setVelocity(linearX_, linearY_, angularZ_);
 }
 
-void RobotController::handleBridgeConnected()
+void RobotController::handleRobotConnected()
 {
     statusRequestPendingId_ = 0;
     jointStatusRequestPendingId_ = 0;
@@ -712,15 +686,17 @@ void RobotController::handleBridgeConnected()
     jointStatusTimer_.start();
     healthTimer_.start();
 
-    emit logMessage(QStringLiteral("Connected to App Bridge."));
+    const QString modelName = activeModel_ == Rby1Model::M ? QStringLiteral("M") : QStringLiteral("A");
+    emit logMessage(QStringLiteral("Connected directly using the Rainbow Robotics SDK (model %1).")
+                        .arg(modelName));
 }
 
-void RobotController::handleBridgeDisconnected()
+void RobotController::handleRobotDisconnected()
 {
     if (state_->name() == QStringLiteral("JointBusy"))
     {
         reportJointMotionFailure(QStringLiteral(
-            "Mất kết nối App Bridge trong khi di chuyển khớp; chưa xác nhận được kết quả."));
+            "Mất kết nối SDK trong khi di chuyển khớp; chưa xác nhận được kết quả."));
     }
     velocityTimer_.stop();
     statusTimer_.stop();
@@ -736,7 +712,7 @@ void RobotController::handleBridgeDisconnected()
 
     markAllComponentsUnknown(true);
     transitionTo(std::make_unique<DisconnectedState>());
-    emit logMessage(QStringLiteral("Disconnected from App Bridge."));
+    emit logMessage(QStringLiteral("Disconnected from the robot SDK endpoint."));
 }
 
 void RobotController::handleResponse(
@@ -877,6 +853,13 @@ void RobotController::handleRequestTimeout(
         {
             jointStatusRequestPendingId_ = 0;
         }
+        auto nextState = state_->onRequestTimeout(*this, requestId, operationName);
+        if (nextState)
+        {
+            extendStatusFreshnessGrace(kPostMotionStatusGraceMs);
+            transitionTo(std::move(nextState));
+            forceStatusRefresh();
+        }
         // Retry on the next polling tick, not recursively on every timeout.
         return;
     }
@@ -956,7 +939,7 @@ void RobotController::applySystemStatus(
     }
     statusMarkedStale_ = false;
 
-    if (!parsed.bridgeConnected)
+    if (!parsed.robotConnected)
     {
         markAllComponentsUnknown(true);
         if (state_->name() == QStringLiteral("Ready"))
@@ -964,7 +947,7 @@ void RobotController::applySystemStatus(
             transitionTo(std::make_unique<ConnectedState>());
         }
         abortPreparation(
-            QStringLiteral("App Bridge reports that Robot API is disconnected."));
+            QStringLiteral("Robot SDK reports that the robot is disconnected."));
         return;
     }
 
@@ -1101,7 +1084,7 @@ void RobotController::checkTimeoutsAndFreshness()
         abortPreparation(
             QStringLiteral("Canonical status became stale."));
         emit logMessage(
-            QStringLiteral("Component status is stale; Power, Servo, and Stream are UNKNOWN."));
+            QStringLiteral("Component status is stale; Power, Servo, and Control Manager are UNKNOWN."));
     }
 }
 
@@ -1296,7 +1279,7 @@ void RobotController::updateStateFromStatus(
         {
             appendStateLog(
                 QStringLiteral(
-                    "App Bridge status confirmed Ready with Power, Servo, and Stream ON."));
+                    "Robot SDK status confirmed Ready with Power, Servo, and Control Manager ON."));
             transitionTo(std::make_unique<ReadyState>());
         }
 

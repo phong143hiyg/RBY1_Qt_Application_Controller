@@ -32,7 +32,7 @@ struct ParsedSystemStatus
 {
     bool accepted{false};
     bool canonical{false};
-    bool bridgeConnected{true};
+    bool robotConnected{true};
     ComponentStatus power;
     ComponentStatus servo;
     ComponentStatus stream;

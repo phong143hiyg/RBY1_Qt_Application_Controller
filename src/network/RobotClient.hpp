@@ -1,14 +1,20 @@
 #pragma once
 
-#include "network/NdjsonParser.hpp"
+#include "model/SystemStatus.hpp"
 
 #include <QJsonObject>
 #include <QObject>
-#include <QQueue>
 #include <QString>
-#include <QTcpSocket>
 
-class RobotClient final : public QObject
+enum class Rby1Model
+{
+    A,
+    M
+};
+
+// In-process interface shared by the controller and the manufacturer's SDK adapter.
+// Robot commands are never serialized to the planning NDJSON service.
+class RobotClient : public QObject
 {
     Q_OBJECT
 
@@ -16,49 +22,27 @@ public:
     explicit RobotClient(QObject *parent = nullptr);
     ~RobotClient() override;
 
-    void connectToBridge(
-        const QString &host = QStringLiteral("127.0.0.1"),
-        quint16 port = 8081);
+    virtual void connectToRobot(const QString &host, quint16 port, Rby1Model model) = 0;
+    virtual void disconnectFromRobot() = 0;
+    [[nodiscard]] virtual bool isConnected() const = 0;
 
-    void disconnectFromBridge();
-
-    [[nodiscard]] bool isConnected() const;
-
-    // Returns a monotonically increasing local request id, or zero if the
-    // command could not be queued. The bridge wire schema is unchanged.
-    quint64 sendCommand(
-        const QJsonObject &command,
-        const QString &operationName,
-        int timeoutMs = 3000);
+    virtual quint64 readStatus(int timeoutMs) = 0;
+    virtual quint64 readJoints(int timeoutMs) = 0;
+    virtual quint64 setComponent(RobotComponent component, bool enabled,
+                                 const QString &operationName, int timeoutMs) = 0;
+    virtual quint64 moveJointRelative(const QString &groupName, int jointIndex,
+                                      double delta, double minimumTime, int timeoutMs) = 0;
+    virtual quint64 executePose(const QString &pose, const QString &operationName,
+                                double minimumTime, int timeoutMs) = 0;
+    virtual quint64 executeSimple(const QString &action, const QString &operationName,
+                                  int timeoutMs) = 0;
+    virtual quint64 setVelocity(double x, double y, double angularZ) = 0;
 
 signals:
-    void bridgeConnected();
-    void bridgeDisconnected();
-
-    void responseReceived(
-        quint64 requestId,
-        const QString &operationName,
-        const QJsonObject &response);
-
-    void requestTimedOut(
-        quint64 requestId,
-        const QString &operationName);
-
+    void robotConnected();
+    void robotDisconnected();
+    void responseReceived(quint64 requestId, const QString &operationName,
+                          const QJsonObject &response);
+    void requestTimedOut(quint64 requestId, const QString &operationName);
     void clientError(const QString &message);
-
-private:
-    struct PendingRequest
-    {
-        quint64 id{0};
-        QString operationName;
-        QString commandName;
-        bool timeoutEmitted{false};
-    };
-
-    void processFrames(const QVector<NdjsonFrame> &frames);
-
-    QTcpSocket socket_;
-    NdjsonParser parser_;
-    QQueue<PendingRequest> pendingRequests_;
-    quint64 nextRequestId_{1};
 };

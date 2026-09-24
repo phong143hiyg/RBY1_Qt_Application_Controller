@@ -38,12 +38,23 @@ yarn-error.log*
 # =========================
 *.o
 *.obj
+!/rby1-sdk-main/models/**/*.obj
 *.out
 *.elf
 *.hex
 *.bin
 CMakeCache.txt
 CMakeFiles/
+build-planning/
+/.dependencies/
+/build-sdk/
+/build-verify-sdk-bridge/
+/build-verify-joint/
+/build-release/
+/build-verify-motion/
+/motion_planning/.cache/
+/reports/.qa-rby1/
+/joint-layout-*.png
 Makefile
 build/
 

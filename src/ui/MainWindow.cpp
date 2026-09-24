@@ -1,10 +1,12 @@
 #include "ui/MainWindow.hpp"
 #include "ui/ToggleSwitch.hpp"
 #include "ui/JointAngleEdit.hpp"
+#include "ui/PlanningPanel.hpp"
 
 #include "controller/RobotController.hpp"
 
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDateTime>
 #include <QDialog>
 #include <QDoubleSpinBox>
@@ -16,6 +18,7 @@
 #include <QJsonDocument>
 #include <QJsonValue>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QList>
 #include <QPushButton>
@@ -28,6 +31,7 @@
 #include <QTextEdit>
 #include <QThread>
 #include <QVBoxLayout>
+#include <QUrl>
 #include <QWidget>
 #include <QtMath>
 
@@ -293,6 +297,23 @@ void MainWindow::buildInterface()
     headerLayout->addWidget(titleLabel);
     headerLayout->addStretch();
 
+    robotAddressEdit_ = new QLineEdit(centralWidget);
+    robotAddressEdit_->setObjectName(QStringLiteral("robotAddressEdit"));
+    robotAddressEdit_->setText(qEnvironmentVariable("RBY1_ROBOT_ADDRESS", QStringLiteral("127.0.0.1:55051")));
+    robotAddressEdit_->setToolTip(QStringLiteral(
+        "Simulator RBY1-M trên máy này dùng 127.0.0.1:55051."));
+    headerLayout->addWidget(new QLabel(QStringLiteral("Robot:"), centralWidget));
+    robotAddressEdit_->setMaximumWidth(240);
+    headerLayout->addWidget(robotAddressEdit_);
+
+    robotModelComboBox_ = new QComboBox(centralWidget);
+    robotModelComboBox_->setObjectName(QStringLiteral("robotModelComboBox"));
+    robotModelComboBox_->addItem(QStringLiteral("RBY1-M"), static_cast<int>(Rby1Model::M));
+    robotModelComboBox_->setCurrentIndex(0);
+    robotModelComboBox_->setEnabled(false);
+    robotModelComboBox_->setToolTip(QStringLiteral("Ứng dụng được cấu hình cố định cho RBY1-M."));
+    headerLayout->addWidget(robotModelComboBox_);
+
     connectButton_ =
         new QPushButton(
             QStringLiteral("Kết nối"),
@@ -318,6 +339,7 @@ void MainWindow::buildInterface()
     tabWidget_->addTab(
         buildSystemAndBaseTab(),
         QStringLiteral("Điều khiển robot"));
+    tabWidget_->addTab(new PlanningPanel(tabWidget_), QStringLiteral("Test quỹ đạo"));
 
     logWindow_ = new QDialog(this);
     logWindow_->setWindowTitle(
@@ -353,7 +375,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
     systemGroup_ =
         new QGroupBox(
             QStringLiteral(
-                "Nguồn, servo và stream"),
+                "Nguồn, servo và Control Manager"),
             tab);
 
     auto *systemLayout =
@@ -369,7 +391,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
     prepareButton_->setMinimumHeight(28);
     prepareButton_->setToolTip(
         QStringLiteral(
-            "Bật nhanh Power, Servo và Stream rồi đưa robot vào Ready."));
+            "Bật nhanh Power, Servo và Control Manager rồi đưa robot vào Ready."));
 
     powerSwitch_ =
         new ToggleSwitch(
@@ -385,7 +407,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     streamSwitch_ =
         new ToggleSwitch(
-            QStringLiteral("Stream"),
+            QStringLiteral("Control Manager"),
             systemGroup_);
     streamSwitch_->setObjectName(QStringLiteral("streamSwitch"));
 
@@ -504,7 +526,7 @@ QWidget *MainWindow::buildSystemAndBaseTab()
 
     robotConnectionValueLabel_ = new QLabel(QStringLiteral("Chưa kết nối"), robotStatusGroup_);
     robotControllerStateValueLabel_ = new QLabel(QStringLiteral("Disconnected"), robotStatusGroup_);
-    robotBridgeStateValueLabel_ = new QLabel(QStringLiteral("—"), robotStatusGroup_);
+    robotReportedStateValueLabel_ = new QLabel(QStringLiteral("—"), robotStatusGroup_);
     robotReadyValueLabel_ = new QLabel(QStringLiteral("—"), robotStatusGroup_);
     robotPowerValueLabel_ = new QLabel(QStringLiteral("Tắt"), robotStatusGroup_);
     robotServoValueLabel_ = new QLabel(QStringLiteral("Tắt"), robotStatusGroup_);
@@ -516,11 +538,11 @@ QWidget *MainWindow::buildSystemAndBaseTab()
     const QList<QPair<QString, QLabel *>> statusRows{
         {QStringLiteral("Kết nối:"), robotConnectionValueLabel_},
         {QStringLiteral("State ứng dụng:"), robotControllerStateValueLabel_},
-        {QStringLiteral("State bridge:"), robotBridgeStateValueLabel_},
+        {QStringLiteral("State robot:"), robotReportedStateValueLabel_},
         {QStringLiteral("Ready:"), robotReadyValueLabel_},
         {QStringLiteral("Power:"), robotPowerValueLabel_},
         {QStringLiteral("Servo:"), robotServoValueLabel_},
-        {QStringLiteral("Stream:"), robotStreamValueLabel_},
+        {QStringLiteral("Control Manager:"), robotStreamValueLabel_},
         {QStringLiteral("Cập nhật lúc:"), robotLastUpdateValueLabel_},
         {QStringLiteral("Thông báo:"), robotMessageValueLabel_}
     };
@@ -605,6 +627,8 @@ QWidget *MainWindow::buildUpperBodyTab()
 
     initialButton_->setToolTip(
         QStringLiteral("Đưa robot về tư thế ban đầu."));
+    armsReadyButton_->setToolTip(
+        QStringLiteral("Co hai tay về tư thế Ready chuẩn của RBY1."));
     setReadyButton_->setToolTip(
         QStringLiteral("Lưu toàn bộ vị trí khớp hiện tại làm pose."));
     goReadyButton_->setToolTip(
@@ -763,6 +787,7 @@ QGroupBox *MainWindow::buildJointGroup(
                 QStringLiteral("\u25C4"),
                 groupBox);
         minusButton->setFixedSize(22, 22);
+        minusButton->setObjectName(QStringLiteral("%1Joint%2Minus").arg(groupName).arg(index));
         minusButton->setToolTip(
             QStringLiteral("Giảm 1°"));
 
@@ -790,6 +815,7 @@ QGroupBox *MainWindow::buildJointGroup(
                 QStringLiteral("\u25BA"),
                 groupBox);
         plusButton->setFixedSize(22, 22);
+        plusButton->setObjectName(QStringLiteral("%1Joint%2Plus").arg(groupName).arg(index));
         plusButton->setToolTip(
             QStringLiteral("Tăng 1°"));
 
@@ -825,11 +851,7 @@ QGroupBox *MainWindow::buildJointGroup(
             this,
             [this, groupName, index]()
             {
-                controller_->nudgeJoint(
-                    groupName,
-                    index,
-                    -degreesToRadians(1.0),
-                    minimumTimeSpinBox_->value());
+                submitJointStep(groupName, index, -1.0);
             });
 
         connect(
@@ -838,11 +860,7 @@ QGroupBox *MainWindow::buildJointGroup(
             this,
             [this, groupName, index]()
             {
-                controller_->nudgeJoint(
-                    groupName,
-                    index,
-                    degreesToRadians(1.0),
-                    minimumTimeSpinBox_->value());
+                submitJointStep(groupName, index, 1.0);
             });
 
         connect(
@@ -898,11 +916,21 @@ void MainWindow::connectSignals()
         {
             if (controllerConnected_)
             {
-                controller_->disconnectFromBridge();
+                controller_->disconnectFromRobot();
             }
             else
             {
-                controller_->connectToBridge();
+                const QUrl address(QStringLiteral("tcp://") + robotAddressEdit_->text().trimmed());
+                if (address.host().isEmpty() || address.port() < 1 || address.port() > 65535
+                    || !address.path().isEmpty() || !address.userInfo().isEmpty()
+                    || address.hasQuery() || address.hasFragment())
+                {
+                    QMessageBox::warning(this, QStringLiteral("Địa chỉ không hợp lệ"),
+                        QStringLiteral("Nhập địa chỉ dạng IP:port, ví dụ 127.0.0.1:50051."));
+                    return;
+                }
+                const auto model = static_cast<Rby1Model>(robotModelComboBox_->currentData().toInt());
+                controller_->connectToRobot(address.host(), static_cast<quint16>(address.port()), model);
             }
         });
 
@@ -1244,7 +1272,7 @@ void MainWindow::applyControllerState(
                 editor->clearConfirmedDegrees();
             }
         }
-        robotBridgeStateValueLabel_->setText(QStringLiteral("—"));
+        robotReportedStateValueLabel_->setText(QStringLiteral("—"));
         robotLastUpdateValueLabel_->setText(QStringLiteral("—"));
         robotMessageValueLabel_->setText(QStringLiteral("—"));
     }
@@ -1255,6 +1283,8 @@ void MainWindow::applyControllerState(
             : QStringLiteral("Kết nối"));
 
     pingButton_->setEnabled(connected);
+    robotAddressEdit_->setEnabled(!connected);
+    robotModelComboBox_->setEnabled(false);
 
     updateSystemSwitchAvailability();
 
@@ -1300,7 +1330,7 @@ void MainWindow::applySystemConfiguration(
     applyComponentView(
         streamSwitch_,
         robotStreamValueLabel_,
-        QStringLiteral("Stream"),
+        QStringLiteral("Control Manager"),
         configuration.stream);
 
     updateSystemSwitchAvailability();
@@ -1459,7 +1489,7 @@ void MainWindow::updateRobotStatus(
         };
 
     setTextValue(
-        robotBridgeStateValueLabel_,
+        robotReportedStateValueLabel_,
         {
             QStringLiteral("state"),
             QStringLiteral("robot_state"),
@@ -1617,6 +1647,22 @@ void MainWindow::updateJointDisplay(
     }
 }
 
+void MainWindow::submitJointStep(const QString &groupName, int jointIndex, double stepDegrees)
+{
+    const auto positions = jointConfirmedDegrees_.constFind(groupName);
+    if (positions == jointConfirmedDegrees_.cend()
+        || jointIndex < 0 || jointIndex >= positions->size()
+        || !qIsFinite(positions->at(jointIndex)))
+    {
+        submitJointTarget(groupName, jointIndex, 0.0);
+        return;
+    }
+    const JointLimits limits = manualJointLimits(groupName, jointIndex);
+    submitJointTarget(groupName, jointIndex,
+        qBound(limits.minimumDegrees, positions->at(jointIndex) + stepDegrees,
+               limits.maximumDegrees));
+}
+
 void MainWindow::submitJointTarget(
     const QString &groupName, int jointIndex, double targetDegrees)
 {
@@ -1639,13 +1685,8 @@ void MainWindow::submitJointTarget(
         controller_->refreshJoints();
         return;
     }
-    const double deltaDegrees = targetDegrees - positions->at(jointIndex);
-    if (qAbs(deltaDegrees) < 1e-6)
-    {
-        return;
-    }
-    controller_->nudgeJoint(groupName, jointIndex,
-        degreesToRadians(deltaDegrees), minimumTimeSpinBox_->value());
+    controller_->moveJointTo(groupName, jointIndex,
+        degreesToRadians(targetDegrees), minimumTimeSpinBox_->value());
 }
 
 void MainWindow::showJointMotionError(const QString &message)
@@ -1663,7 +1704,7 @@ void MainWindow::closeEvent(
 {
     logWindow_->close();
     controller_->stopDrive();
-    controller_->disconnectFromBridge();
+    controller_->disconnectFromRobot();
 
     QMainWindow::closeEvent(event);
 }

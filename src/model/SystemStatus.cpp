@@ -151,7 +151,7 @@ ParsedSystemStatus parseSystemStatus(
 
     if (response.value(QStringLiteral("connected")).isBool())
     {
-        result.bridgeConnected =
+        result.robotConnected =
             response.value(QStringLiteral("connected")).toBool();
     }
 
