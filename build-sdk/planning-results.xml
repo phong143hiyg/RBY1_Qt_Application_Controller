@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite name="TestPlanning" timestamp="2026&#x002D;09&#x002D;25T01:30:17" hostname="DESKTOP&#x002D;AHVKPFM" tests="21" failures="0" errors="0" skipped="0" time="52.607">
+  <properties>
+    <property name="QTestVersion" value="6.11.1"/>
+    <property name="QtVersion" value="6.11.1"/>
+    <property name="QtBuild" value="Qt 6.11.1 (x86_64&#x002D;little_endian&#x002D;llp64 shared (dynamic) release build; by GCC 13.1.0)"/>
+  </properties>
+  <testcase name="initTestCase" classname="TestPlanning" time="0.000"/>
+  <testcase name="correlationAndWrongEnvelopes" classname="TestPlanning" time="0.340"/>
+  <testcase name="ackSequenceAndOldTask" classname="TestPlanning" time="0.330"/>
+  <testcase name="terminalBeforeAck" classname="TestPlanning" time="0.238"/>
+  <testcase name="timeoutAndLateResponse" classname="TestPlanning" time="1.982"/>
+  <testcase name="cancelRaceAndConfirmation" classname="TestPlanning" time="0.452"/>
+  <testcase name="cancelAckTimeoutAndDisconnect" classname="TestPlanning" time="3.397"/>
+  <testcase name="reconnectRequiresStatus" classname="TestPlanning" time="0.641"/>
+  <testcase name="sceneModelAndValidationInvalidate" classname="TestPlanning" time="0.451"/>
+  <testcase name="capabilityGatingAndOldSceneResponse" classname="TestPlanning" time="0.634"/>
+  <testcase name="ndjsonLimitsAndFragments" classname="TestPlanning" time="0.002"/>
+  <testcase name="invalidInput" classname="TestPlanning" time="0.001"/>
+  <testcase name="panelUsesSceneAndRejectsNan" classname="TestPlanning" time="0.711"/>
+  <testcase name="mockIntegration(normal)" classname="TestPlanning" time="5.941"/>
+  <testcase name="mockIntegration(terminal&#x002D;first)" classname="TestPlanning" time="6.392"/>
+  <testcase name="mockIntegration(failure)" classname="TestPlanning" time="5.291"/>
+  <testcase name="mockIntegration(timeout)" classname="TestPlanning" time="5.691"/>
+  <testcase name="mockIntegration(disconnect)" classname="TestPlanning" time="8.513"/>
+  <testcase name="mockIntegration(stale&#x002D;revision)" classname="TestPlanning" time="6.915"/>
+  <testcase name="mockIntegration(cancel)" classname="TestPlanning" time="4.681"/>
+  <testcase name="cleanupTestCase" classname="TestPlanning" time="0.000"/>
+</testsuite>

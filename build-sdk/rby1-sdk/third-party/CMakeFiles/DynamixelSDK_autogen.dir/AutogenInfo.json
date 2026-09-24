@@ -1,0 +1,138 @@
+{
+	"AUTOGEN_COMMAND_LINE_LENGTH_MAX" : 32000,
+	"BUILD_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/DynamixelSDK_autogen",
+	"CMAKE_BINARY_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk",
+	"CMAKE_CURRENT_BINARY_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party",
+	"CMAKE_CURRENT_SOURCE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party",
+	"CMAKE_EXECUTABLE" : "C:/Qt/Tools/CMake_64/bin/cmake.exe",
+	"CMAKE_LIST_FILES" : 
+	[
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/CMakeLists.txt"
+	],
+	"CMAKE_SOURCE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern",
+	"CROSS_CONFIG" : false,
+	"DEP_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/DynamixelSDK_autogen/deps",
+	"DEP_FILE_RULE_NAME" : "DynamixelSDK_autogen/timestamp",
+	"HEADERS" : [],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/DynamixelSDK_autogen/include",
+	"MOC_COMPILATION_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/DynamixelSDK_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : [],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/include/dynamixel_sdk",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/x86_64-w64-mingw32",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/backward",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include-fixed",
+		"C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include"
+	],
+	"MOC_MACRO_NAMES" : 
+	[
+		"Q_OBJECT",
+		"Q_GADGET",
+		"Q_NAMESPACE",
+		"Q_NAMESPACE_EXPORT",
+		"Q_GADGET_EXPORT",
+		"Q_ENUM_NS"
+	],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : 
+	[
+		"C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+		"-std=c++17",
+		"-dM",
+		"-E",
+		"-c",
+		"C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp"
+	],
+	"MOC_PREDEFS_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/DynamixelSDK_autogen/moc_predefs.h",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 10,
+	"PARSE_CACHE_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/CMakeFiles/DynamixelSDK_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "C:/Qt/6.11.1/mingw_64/bin/moc.exe",
+	"QT_UIC_EXECUTABLE" : "C:/Qt/6.11.1/mingw_64/bin/uic.exe",
+	"QT_VERSION_MAJOR" : 6,
+	"QT_VERSION_MINOR" : 11,
+	"SETTINGS_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/CMakeFiles/DynamixelSDK_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/group_bulk_read.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/group_bulk_write.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/group_fast_bulk_read.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/group_fast_sync_read.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/group_handler.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/group_sync_read.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/group_sync_write.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/packet_handler.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/port_handler.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/port_handler_windows.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/protocol1_packet_handler.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/src/dynamixel_sdk/protocol2_packet_handler.cpp",
+			"MU",
+			null
+		]
+	],
+	"UIC_OPTIONS" : [],
+	"UIC_SEARCH_PATHS" : [],
+	"UIC_SKIP" : [],
+	"UIC_UI_FILES" : [],
+	"USE_BETTER_GRAPH" : true,
+	"VERBOSITY" : 0
+}

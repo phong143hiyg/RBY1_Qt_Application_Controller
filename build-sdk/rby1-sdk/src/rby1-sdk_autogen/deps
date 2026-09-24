@@ -1,0 +1,19 @@
+rby1-sdk_autogen/timestamp: \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/CMakeLists.txt \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/base/dynamixel_bus.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/inertial.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/joint.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/link.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/robot.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/qp_solver.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/se2.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/se3.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/so3.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/trapezoidal_motion_generator.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/net/real_time_control_protocol.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/robot.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/robot_command_builder.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/robot_command_feedback.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/upc/device.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/upc/leader_arm.cpp \
+	C:/Qt/Tools/CMake_64/bin/cmake.exe

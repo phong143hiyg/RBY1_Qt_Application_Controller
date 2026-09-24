@@ -1,0 +1,6 @@
+#pragma once
+
+#define RBY1_SDK_VERSION "0.10.0"
+#define RBY1_SDK_VERSION_MAJOR 0
+#define RBY1_SDK_VERSION_MINOR 10
+#define RBY1_SDK_VERSION_PATCH 0

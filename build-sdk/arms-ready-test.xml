@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite name="TestSdkRobotClient" timestamp="2026&#x002D;09&#x002D;25T01:41:55" hostname="DESKTOP&#x002D;AHVKPFM" tests="7" failures="0" errors="0" skipped="0" time="7.411">
+  <properties>
+    <property name="QTestVersion" value="6.11.1"/>
+    <property name="QtVersion" value="6.11.1"/>
+    <property name="QtBuild" value="Qt 6.11.1 (x86_64&#x002D;little_endian&#x002D;llp64 shared (dynamic) release build; by GCC 13.1.0)"/>
+  </properties>
+  <testcase name="initTestCase" classname="TestSdkRobotClient" time="0.000"/>
+  <testcase name="disconnectedOperationsDoNotSendCommands" classname="TestSdkRobotClient" time="0.002"/>
+  <testcase name="failedConnectionKeepsEventLoopResponsive" classname="TestSdkRobotClient" time="1.571"/>
+  <testcase name="disconnectCancelsPendingConnection" classname="TestSdkRobotClient" time="1.104"/>
+  <testcase name="connectsToConfiguredRobotReadOnly" classname="TestSdkRobotClient" time="0.464"/>
+  <testcase name="enablesControlManagerOnConfiguredSimulator" classname="TestSdkRobotClient" time="4.265"/>
+  <testcase name="cleanupTestCase" classname="TestSdkRobotClient" time="0.000"/>
+</testsuite>

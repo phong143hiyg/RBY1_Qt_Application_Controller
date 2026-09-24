@@ -1,0 +1,14 @@
+[
+{
+  "directory": "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\g++.exe -IC:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/_deps/qdldl-build/qdldlobject_autogen/include -IC:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/qdldl/include -IC:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/_deps/qdldl-build/include -m64 -O3 -DNDEBUG -std=c++17 -o _deps\\qdldl-build\\CMakeFiles\\qdldlobject.dir\\qdldlobject_autogen\\mocs_compilation.cpp.obj -c C:\\Users\\ADMIN\\source\\repos\\RBY1DesktopQt_Moc4_StatePattern\\build-sdk\\_deps\\qdldl-build\\qdldlobject_autogen\\mocs_compilation.cpp",
+  "file": "C:\\Users\\ADMIN\\source\\repos\\RBY1DesktopQt_Moc4_StatePattern\\build-sdk\\_deps\\qdldl-build\\qdldlobject_autogen\\mocs_compilation.cpp",
+  "output": "_deps\\qdldl-build\\CMakeFiles\\qdldlobject.dir\\qdldlobject_autogen\\mocs_compilation.cpp.obj"
+},
+{
+  "directory": "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\gcc.exe -IC:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/_deps/qdldl-build/qdldlobject_autogen/include -IC:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/qdldl/include -IC:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/_deps/qdldl-build/include -m64 -O3 -O3 -O3 -DNDEBUG -o _deps\\qdldl-build\\CMakeFiles\\qdldlobject.dir\\src\\qdldl.c.obj -c C:\\Users\\ADMIN\\source\\repos\\RBY1DesktopQt_Moc4_StatePattern\\rby1-sdk-main\\third-party\\qdldl\\src\\qdldl.c",
+  "file": "C:\\Users\\ADMIN\\source\\repos\\RBY1DesktopQt_Moc4_StatePattern\\rby1-sdk-main\\third-party\\qdldl\\src\\qdldl.c",
+  "output": "_deps\\qdldl-build\\CMakeFiles\\qdldlobject.dir\\src\\qdldl.c.obj"
+}
+]

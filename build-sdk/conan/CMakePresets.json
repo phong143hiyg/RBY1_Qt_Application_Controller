@@ -1,0 +1,45 @@
+{
+    "version": 3,
+    "vendor": {
+        "conan": {}
+    },
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 15,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "conan-release",
+            "displayName": "'conan-release' config",
+            "description": "'conan-release' configure using 'Ninja' generator",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_BUILD_TYPE": "Release"
+            },
+            "toolchainFile": "conan_toolchain.cmake",
+            "binaryDir": "C:\\Users\\ADMIN\\source\\repos\\RBY1DesktopQt_Moc4_StatePattern\\build-sdk\\conan"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "conan-release",
+            "configurePreset": "conan-release",
+            "jobs": 20
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "conan-release",
+            "configurePreset": "conan-release",
+            "execution": {
+                "jobs": 20
+            },
+            "environment": {
+                "GRPC_DEFAULT_SSL_ROOTS_FILE_PATH": "C:\\Users\\ADMIN\\source\\repos\\RBY1DesktopQt_Moc4_StatePattern\\.dependencies\\conan-home\\p\\b\\grpccb56fbb868c21\\p\\res\\grpc\\roots.pem",
+                "OPENSSL_MODULES": "C:\\Users\\ADMIN\\source\\repos\\RBY1DesktopQt_Moc4_StatePattern\\.dependencies\\conan-home\\p\\b\\opens8911eb5d6396e\\p\\lib\\ossl-modules"
+            }
+        }
+    ]
+}

@@ -1,0 +1,178 @@
+{
+	"AUTOGEN_COMMAND_LINE_LENGTH_MAX" : 32000,
+	"BUILD_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src/rby1-sdk_autogen",
+	"CMAKE_BINARY_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk",
+	"CMAKE_CURRENT_BINARY_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src",
+	"CMAKE_CURRENT_SOURCE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src",
+	"CMAKE_EXECUTABLE" : "C:/Qt/Tools/CMake_64/bin/cmake.exe",
+	"CMAKE_LIST_FILES" : 
+	[
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/CMakeLists.txt"
+	],
+	"CMAKE_SOURCE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern",
+	"CROSS_CONFIG" : false,
+	"DEP_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src/rby1-sdk_autogen/deps",
+	"DEP_FILE_RULE_NAME" : "rby1-sdk_autogen/timestamp",
+	"HEADERS" : [],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src/rby1-sdk_autogen/include",
+	"MOC_COMPILATION_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src/rby1-sdk_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : 
+	[
+		"CARES_STATICLIB",
+		"OSQP_EIGEN_OSQP_IS_V1",
+		"OSQP_EIGEN_OSQP_IS_V1_FINAL",
+		"PROFILING",
+		"RBY1_SDK_STATIC"
+	],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/include",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/private",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/_protobuf/Release",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/osqp/include/public",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/third-party/osqp/include/public",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/osqp-eigen/include",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/DynamixelSDK/c++/include/dynamixel_sdk",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/.dependencies/conan-home/p/eigen4d77fa21bd370/p/include/eigen3",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/.dependencies/conan-home/p/b/tinyx106c015904130/p/include",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/.dependencies/conan-home/p/b/grpccb56fbb868c21/p/include",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/.dependencies/conan-home/p/b/abseicae8c4e5c41f9/p/include",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/.dependencies/conan-home/p/b/zlib950325c4efb55/p/include",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/.dependencies/conan-home/p/b/protoc4c65a81584a8/p/include",
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/.dependencies/conan-home/p/nlohm0567ffc90cfc1/p/include",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/x86_64-w64-mingw32",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/backward",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include",
+		"C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include-fixed",
+		"C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include"
+	],
+	"MOC_MACRO_NAMES" : 
+	[
+		"Q_OBJECT",
+		"Q_GADGET",
+		"Q_NAMESPACE",
+		"Q_NAMESPACE_EXPORT",
+		"Q_GADGET_EXPORT",
+		"Q_ENUM_NS"
+	],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : 
+	[
+		"C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+		"-std=c++17",
+		"-dM",
+		"-E",
+		"-c",
+		"C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeCXXCompilerABI.cpp"
+	],
+	"MOC_PREDEFS_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src/rby1-sdk_autogen/moc_predefs.h",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 10,
+	"PARSE_CACHE_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src/CMakeFiles/rby1-sdk_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "C:/Qt/6.11.1/mingw_64/bin/moc.exe",
+	"QT_UIC_EXECUTABLE" : "C:/Qt/6.11.1/mingw_64/bin/uic.exe",
+	"QT_VERSION_MAJOR" : 6,
+	"QT_VERSION_MINOR" : 11,
+	"SETTINGS_FILE" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/src/CMakeFiles/rby1-sdk_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/base/dynamixel_bus.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/inertial.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/joint.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/link.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/dynamics/robot.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/qp_solver.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/se2.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/se3.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/so3.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/math/trapezoidal_motion_generator.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/net/real_time_control_protocol.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/robot.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/robot_command_builder.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/robot_command_feedback.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/upc/device.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/src/upc/leader_arm.cpp",
+			"MU",
+			null
+		]
+	],
+	"UIC_OPTIONS" : [],
+	"UIC_SEARCH_PATHS" : [],
+	"UIC_SKIP" : [],
+	"UIC_UI_FILES" : [],
+	"USE_BETTER_GRAPH" : true,
+	"VERBOSITY" : 0
+}

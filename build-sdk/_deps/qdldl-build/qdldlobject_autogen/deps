@@ -1,0 +1,12 @@
+qdldlobject_autogen/timestamp: \
+	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeDependentOption.cmake \
+	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXCompilerFlag.cmake \
+	C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/GNUInstallDirs.cmake \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/_deps/qdldl-build/include/qdldl_types.h \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/_deps/qdldl-build/include/qdldl_version.h \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/qdldl/CMakeLists.txt \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/qdldl/configure/qdldl_types.h.in \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/qdldl/configure/qdldl_version.h.in \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/qdldl/include/qdldl.h \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/rby1-sdk-main/third-party/qdldl/src/qdldl.c \
+	C:/Qt/Tools/CMake_64/bin/cmake.exe

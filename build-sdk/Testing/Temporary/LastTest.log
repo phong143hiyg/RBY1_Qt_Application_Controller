@@ -1,0 +1,59 @@
+Start testing: Sep 25 01:30 SE Asia Standard Time
+----------------------------------------------------------
+1/3 Testing: RBY1SdkTests
+1/3 Test: RBY1SdkTests
+Command: "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1SdkTests.exe" "-o" "-,txt" "-o" "sdk-results.xml,junitxml"
+Directory: C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk
+"RBY1SdkTests" start time: Sep 25 01:30 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   2.72 sec
+----------------------------------------------------------
+Test Passed.
+"RBY1SdkTests" end time: Sep 25 01:30 SE Asia Standard Time
+"RBY1SdkTests" time elapsed: 00:00:02
+----------------------------------------------------------
+
+2/3 Testing: RBY1PlanningTests
+2/3 Test: RBY1PlanningTests
+Command: "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1PlanningTests.exe" "-o" "-,txt" "-o" "planning-results.xml,junitxml"
+Directory: C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk
+"RBY1PlanningTests" start time: Sep 25 01:30 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =  52.68 sec
+----------------------------------------------------------
+Test Passed.
+"RBY1PlanningTests" end time: Sep 25 01:31 SE Asia Standard Time
+"RBY1PlanningTests" time elapsed: 00:00:52
+----------------------------------------------------------
+
+3/3 Testing: PlanningMockTests
+3/3 Test: PlanningMockTests
+Command: "C:/Python314/python.exe" "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/tests/test_mock_planning.py"
+Directory: C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk
+"PlanningMockTests" start time: Sep 25 01:31 SE Asia Standard Time
+Output:
+----------------------------------------------------------
+test_busy_cancel_and_reconnect (__main__.ContractTests.test_busy_cancel_and_reconnect) ... ok
+test_capabilities_scene_preview_invariance_and_stale (__main__.ContractTests.test_capabilities_scene_preview_invariance_and_stale) ... ok
+test_failures_deadline_and_terminal_before_ack (__main__.ContractTests.test_failures_deadline_and_terminal_before_ack) ... ok
+test_invalid_input_and_unknown_commands (__main__.ContractTests.test_invalid_input_and_unknown_commands) ... ok
+test_nonfinite_validation (__main__.ContractTests.test_nonfinite_validation) ... ok
+test_ttl_and_frame_limit (__main__.ContractTests.test_ttl_and_frame_limit) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 13.084s
+
+OK
+<end of output>
+Test time =  14.44 sec
+----------------------------------------------------------
+Test Passed.
+"PlanningMockTests" end time: Sep 25 01:31 SE Asia Standard Time
+"PlanningMockTests" time elapsed: 00:00:14
+----------------------------------------------------------
+
+End testing: Sep 25 01:31 SE Asia Standard Time
