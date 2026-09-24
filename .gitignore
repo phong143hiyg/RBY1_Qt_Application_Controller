@@ -53,7 +53,8 @@ build-planning/
 /build-release/
 /build-verify-motion/
 /motion_planning/.cache/
-/reports/.qa-rby1/
+/question/
+/reports/
 /joint-layout-*.png
 Makefile
 build/
