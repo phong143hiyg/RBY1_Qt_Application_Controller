@@ -31,9 +31,9 @@ public:
     virtual quint64 setComponent(RobotComponent component, bool enabled,
                                  const QString &operationName, int timeoutMs) = 0;
     virtual quint64 moveJointRelative(const QString &groupName, int jointIndex,
-                                      double delta, double minimumTime, int timeoutMs) = 0;
+                                      double delta, int timeoutMs) = 0;
     virtual quint64 executePose(const QString &pose, const QString &operationName,
-                                double minimumTime, int timeoutMs) = 0;
+                                int timeoutMs) = 0;
     virtual quint64 executeSimple(const QString &action, const QString &operationName,
                                   int timeoutMs) = 0;
     virtual quint64 setVelocity(double x, double y, double angularZ) = 0;

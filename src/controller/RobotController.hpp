@@ -54,16 +54,14 @@ public:
     void nudgeJoint(
         const QString &groupName,
         int jointIndex,
-        double delta,
-        double minimumTime);
+        double delta);
 
     void moveJointTo(const QString &groupName, int jointIndex,
-                     double targetRadians, double minimumTime);
+                     double targetRadians);
 
     void sendPose(
         const QString &command,
-        const QString &operationName,
-        double minimumTime);
+        const QString &operationName);
 
     // API used by RobotState implementations.
     bool sendSimpleInternal(
@@ -82,15 +80,13 @@ public:
     quint64 sendJointNudgeInternal(
         const QString &groupName,
         int jointIndex,
-        double delta,
-        double minimumTime);
+        double delta);
 
     quint64 requestJointSnapshotInternal();
 
     quint64 sendPoseInternal(
         const QString &command,
-        const QString &operationName,
-        double minimumTime);
+        const QString &operationName);
 
     void scheduleJointRefresh();
 
@@ -224,6 +220,7 @@ private:
     ComponentRuntime stream_;
 
     static constexpr int kCommandTimeoutMs = 3000;
+    static constexpr int kMotionTimeoutMs = 15000;
     static constexpr int kConfirmationTimeoutMs = 5000;
     static constexpr int kStatusStaleMs = 2500;
     static constexpr int kPostMotionStatusGraceMs = 2500;

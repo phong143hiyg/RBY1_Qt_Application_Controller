@@ -11,7 +11,6 @@
 class QCloseEvent;
 class QComboBox;
 class QDialog;
-class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
 class QLineEdit;
@@ -106,8 +105,6 @@ private:
     QPushButton *setReadyButton_{nullptr};
     QPushButton *goReadyButton_{nullptr};
     QPushButton *clearReadyButton_{nullptr};
-
-    QDoubleSpinBox *minimumTimeSpinBox_{nullptr};
 
     QGroupBox *systemGroup_{nullptr};
     QGroupBox *driveGroup_{nullptr};

@@ -34,7 +34,8 @@ robot mặc định `127.0.0.1:55051`.
 ## Nhập góc khớp
 
 - Các ô màu xanh hiển thị góc thực tế theo độ (°), đọc trực tiếp qua RBY1 SDK mỗi 500 ms.
-- Bấm vào ô để nhập góc đích tuyệt đối, rồi nhấn Enter để gửi lệnh. Thời gian chuyển động dùng giá trị ở ô **Thời gian**; xử lý chuyển động giống kéo và nhả slider.
+- Bấm vào ô để nhập góc đích tuyệt đối, rồi nhấn Enter để gửi lệnh; xử lý chuyển động giống kéo và nhả slider.
+- Ứng dụng không đặt `minimum_time`: SDK tự chọn quỹ đạo nhanh nhất trong giới hạn vận tốc và gia tốc của robot/simulator.
 - Trong lúc ô có focus, giá trị đang nhập không bị timer ghi đè. Bấm ra ngoài mà chưa Enter sẽ bỏ bản nháp và hiển thị lại góc robot báo gần nhất, sau đó tiếp tục cập nhật.
 - Enter không tự đặt góc hiển thị thành góc đích: chỉ snapshot từ robot cập nhật giá trị xác nhận.
 - Giá trị không hợp lệ, ngoài giới hạn thủ công, lệnh bị từ chối, timeout hoặc mất kết nối trong lúc chuyển động sẽ có popup thông báo. Không tự gửi lại lệnh thất bại.
@@ -171,10 +172,10 @@ Khi action trả về -> Ready.
 
 Với thanh trượt, nhập góc và nút ±1°, ứng dụng giữ góc đích tuyệt đối và
 đọc trạng thái khớp mới trước khi gửi lệnh. Sau mỗi kết quả lệnh khớp,
-ứng dụng đọc lại vị trí thực để tính delta tiếp theo; không cộng dồn phần
-delta còn lại từ giá trị hiển thị cũ. Mỗi đoạn tối đa 0.20 rad, với thời
-gian tối thiểu 0.20 s. `JointBusy` chỉ kết thúc khi vị trí đo được cách đích
-không quá 0.05°, hoặc khi lỗi/timeout xảy ra; số đoạn hiệu chỉnh có giới hạn.
+ứng dụng đọc lại vị trí thực để xác nhận đích. Toàn bộ delta được gửi trong
+một motion liên tục, không chia thành các đoạn 0.20 rad gây dừng–chạy.
+`JointBusy` chỉ kết thúc khi vị trí đo được cách đích không quá 0.05°, hoặc
+khi lỗi/timeout xảy ra; số lần hiệu chỉnh theo feedback có giới hạn.
 Nút ±1° dùng cùng khoảng điều khiển đã chừa 1° ở hai biên như thanh trượt.
 
 ## Điều khiển robot qua SDK

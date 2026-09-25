@@ -38,12 +38,10 @@ public:
         RobotController &controller,
         const QString &groupName,
         int jointIndex,
-        double delta,
-        double minimumTime) override;
+        double delta) override;
 
     std::unique_ptr<RobotState> sendPose(
         RobotController &controller,
         const QString &command,
-        const QString &operationName,
-        double minimumTime) override;
+        const QString &operationName) override;
 };

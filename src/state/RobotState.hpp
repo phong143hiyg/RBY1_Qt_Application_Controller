@@ -57,14 +57,12 @@ public:
         RobotController &controller,
         const QString &groupName,
         int jointIndex,
-        double delta,
-        double minimumTime);
+        double delta);
 
     virtual std::unique_ptr<RobotState> sendPose(
         RobotController &controller,
         const QString &command,
-        const QString &operationName,
-        double minimumTime);
+        const QString &operationName);
 
     virtual std::unique_ptr<RobotState> onResponse(
         RobotController &controller,

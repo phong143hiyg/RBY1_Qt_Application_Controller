@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite name="TestSdkRobotClient" timestamp="2026&#x002D;09&#x002D;25T01:30:14" hostname="DESKTOP&#x002D;AHVKPFM" tests="7" failures="0" errors="0" skipped="2" time="2.687">
+<testsuite name="TestSdkRobotClient" timestamp="2026&#x002D;09&#x002D;25T15:05:06" hostname="DESKTOP&#x002D;AHVKPFM" tests="7" failures="0" errors="0" skipped="2" time="2.698">
   <properties>
     <property name="QTestVersion" value="6.11.1"/>
     <property name="QtVersion" value="6.11.1"/>
     <property name="QtBuild" value="Qt 6.11.1 (x86_64&#x002D;little_endian&#x002D;llp64 shared (dynamic) release build; by GCC 13.1.0)"/>
   </properties>
   <testcase name="initTestCase" classname="TestSdkRobotClient" time="0.000"/>
-  <testcase name="disconnectedOperationsDoNotSendCommands" classname="TestSdkRobotClient" time="0.001"/>
-  <testcase name="failedConnectionKeepsEventLoopResponsive" classname="TestSdkRobotClient" time="1.575"/>
-  <testcase name="disconnectCancelsPendingConnection" classname="TestSdkRobotClient" time="1.108"/>
+  <testcase name="disconnectedOperationsDoNotSendCommands" classname="TestSdkRobotClient" time="0.005"/>
+  <testcase name="failedConnectionKeepsEventLoopResponsive" classname="TestSdkRobotClient" time="1.584"/>
+  <testcase name="disconnectCancelsPendingConnection" classname="TestSdkRobotClient" time="1.103"/>
   <testcase name="connectsToConfiguredRobotReadOnly" classname="TestSdkRobotClient" time="0.000">
     <skipped message="Set RBY1_TEST_ROBOT_ADDRESS to run the read&#x002D;only SDK integration test."/>
   </testcase>

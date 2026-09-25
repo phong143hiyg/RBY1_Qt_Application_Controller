@@ -144,6 +144,35 @@ QJsonObject result(bool success, const QString &message = {})
     return {{QStringLiteral("success"), success}, {QStringLiteral("message"), message}};
 }
 
+QString motionFailureMessage(
+    bool grpcOk,
+    rb::RobotCommandFeedback::FinishCode finishCode)
+{
+    if (!grpcOk)
+        return QStringLiteral("SDK command transport failed.");
+
+    using FinishCode = rb::RobotCommandFeedback::FinishCode;
+    switch (finishCode) {
+    case FinishCode::kCanceled:
+        return QStringLiteral("SDK motion was cancelled (finish_code=Canceled).");
+    case FinishCode::kPreempted:
+        return QStringLiteral("SDK motion was replaced by another command (finish_code=Preempted).");
+    case FinishCode::kInitializationFailed:
+        return QStringLiteral("SDK could not initialize the motion (finish_code=InitializationFailed). Check the target joint range.");
+    case FinishCode::kControlManagerIdle:
+        return QStringLiteral("SDK motion failed because Control Manager is idle.");
+    case FinishCode::kControlManagerFault:
+        return QStringLiteral("SDK motion failed because Control Manager is in Fault.");
+    case FinishCode::kUnexpectedState:
+        return QStringLiteral("SDK rejected the motion (finish_code=UnexpectedState). Check the target joint range and robot state.");
+    case FinishCode::kUnknown:
+        return QStringLiteral("SDK motion failed (finish_code=Unknown).");
+    case FinishCode::kOk:
+        break;
+    }
+    return QStringLiteral("SDK motion failed.");
+}
+
 QJsonObject component(bool known, bool enabled)
 {
     return {{QStringLiteral("known"), known}, {QStringLiteral("enabled"), enabled},
@@ -154,11 +183,6 @@ void require(bool condition, const std::string &message)
 {
     if (!condition)
         throw std::runtime_error(message);
-}
-
-void checkTime(double minimumTime)
-{
-    require(qIsFinite(minimumTime) && minimumTime >= 0.0, "Invalid minimum motion time.");
 }
 
 bool isLoopbackHost(const QString &host)
@@ -342,7 +366,7 @@ struct SdkRobotClient::Impl
         return state.position;
     }
 
-    std::unique_ptr<rb::RobotCommandBuilder> groupCommand(const QString &group, const Eigen::VectorXd &all, double time)
+    std::unique_ptr<rb::RobotCommandBuilder> groupCommand(const QString &group, const Eigen::VectorXd &all)
     {
         const auto &idx = indices(group);
         require(!idx.empty(), "Robot does not have the requested joint group.");
@@ -352,7 +376,16 @@ struct SdkRobotClient::Impl
             q[i] = all[idx[i]];
         }
         rb::JointPositionCommandBuilder position;
-        position.SetPosition(q).SetMinimumTime(qMax(0.20, time));
+        const Eigen::VectorXd velocityLimit =
+            Eigen::VectorXd::Constant(q.size(), 1.0); // rad/s
+
+        const Eigen::VectorXd accelerationLimit =
+            Eigen::VectorXd::Constant(q.size(), 2.0); // rad/s²
+
+        position
+                .SetPosition(q);
+                .SetVeclocityLimit(velocityLimit);
+                .SetAccelerationLimit(accelerationLimit);
         rb::ComponentBasedCommandBuilder components;
         if (group == QStringLiteral("head")) {
             components.SetHeadCommand(rb::HeadCommandBuilder().SetCommand(position));
@@ -393,7 +426,9 @@ struct SdkRobotClient::Impl
             const auto feedback = motion->handle->Get();
             motion.reset();
             const bool success = grpcOk && feedback.finish_code() == rb::RobotCommandFeedback::FinishCode::kOk;
-            complete(id, result(success, success ? QString{} : QStringLiteral("SDK motion failed or was cancelled.")));
+            complete(id, result(success, success
+                ? QString{}
+                : motionFailureMessage(grpcOk, feedback.finish_code())));
         } catch (const std::exception &error) {
             motion.reset();
             complete(id, result(false, QString::fromUtf8(error.what())));
@@ -411,7 +446,7 @@ struct SdkRobotClient::Impl
         require(static_cast<bool>(velocityStream), "Could not create SDK command stream.");
         rb::SE2VelocityCommandBuilder velocity;
         velocity.SetCommandHeader(rb::CommandHeaderBuilder().SetControlHoldTime(0.30))
-                .SetMinimumTime(0.10).SetVelocity(Eigen::Vector2d(x, y), angularZ);
+                .SetVelocity(Eigen::Vector2d(x, y), angularZ);
         rb::ComponentBasedCommandBuilder components;
         components.SetMobilityCommand(rb::MobilityCommandBuilder().SetCommand(velocity));
         velocityStream->SendCommand(rb::RobotCommandBuilder().SetCommand(components), 500);
@@ -565,23 +600,21 @@ quint64 SdkRobotClient::setComponent(RobotComponent component, bool enabled,
 }
 
 quint64 SdkRobotClient::moveJointRelative(const QString &group, int index, double delta,
-                                         double time, int timeoutMs)
+                                         int timeoutMs)
 {
-    return impl_->submit(QStringLiteral("Joint nudge"), timeoutMs, [this, group, index, delta, time](quint64 id, const Token &valid) {
-        checkTime(time);
-        require(qIsFinite(delta) && qAbs(delta) <= 0.20 + 1e-9, "Invalid joint delta (maximum 0.20 rad per segment).");
+    return impl_->submit(QStringLiteral("Joint nudge"), timeoutMs, [this, group, index, delta](quint64 id, const Token &valid) {
+        require(qIsFinite(delta), "Invalid joint delta.");
         const auto &indices = impl_->indices(group);
         require(index >= 0 && index < static_cast<int>(indices.size()), "Joint index is outside the group.");
         auto positions = impl_->measuredPositions();
         positions[indices[index]] += delta;
-        impl_->startMotion(id, valid, *impl_->groupCommand(group, positions, time));
+        impl_->startMotion(id, valid, *impl_->groupCommand(group, positions));
     });
 }
 
-quint64 SdkRobotClient::executePose(const QString &pose, const QString &operation, double time, int timeoutMs)
+quint64 SdkRobotClient::executePose(const QString &pose, const QString &operation, int timeoutMs)
 {
-    return impl_->submit(operation, timeoutMs, [this, pose, time](quint64 id, const Token &valid) {
-        checkTime(time);
+    return impl_->submit(operation, timeoutMs, [this, pose](quint64 id, const Token &valid) {
         if (pose == QStringLiteral("set_ready_pose")) {
             impl_->readyPose = impl_->measuredPositions();
             impl_->complete(id, result(true));
@@ -622,12 +655,12 @@ quint64 SdkRobotClient::executePose(const QString &pose, const QString &operatio
             }
         }
         rb::BodyComponentBasedCommandBuilder body;
-        auto positionFor = [this, &target, time](const QString &name) {
+        auto positionFor = [this, &target](const QString &name) {
             const auto &indices = impl_->indices(name);
             Eigen::VectorXd q(indices.size());
             for (size_t i = 0; i < indices.size(); ++i) q[i] = target[indices[i]];
             auto position = std::make_unique<rb::JointPositionCommandBuilder>();
-            position->SetPosition(q).SetMinimumTime(qMax(0.20, time));
+            position->SetPosition(q);
             return position;
         };
         body.SetRightArmCommand(rb::ArmCommandBuilder().SetCommand(*positionFor(QStringLiteral("right_arm"))));
@@ -645,7 +678,7 @@ quint64 SdkRobotClient::executePose(const QString &pose, const QString &operatio
 quint64 SdkRobotClient::executeSimple(const QString &action, const QString &operation, int timeoutMs)
 {
     if (action == QStringLiteral("set_ready_pose") || action == QStringLiteral("clear_ready_pose"))
-        return executePose(action, operation, 0.0, timeoutMs);
+        return executePose(action, operation, timeoutMs);
     return impl_->submit(operation, timeoutMs, [this, action](quint64 id, const Token &) {
         bool ok = true;
         if (action == QStringLiteral("ping")) {

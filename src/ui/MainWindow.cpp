@@ -9,7 +9,6 @@
 #include <QComboBox>
 #include <QDateTime>
 #include <QDialog>
-#include <QDoubleSpinBox>
 #include <QFont>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -39,6 +38,10 @@ namespace
 {
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kManualJointLimitMarginDegrees = 1.0;
+// RBY1-M model_v1.2.urdf stores each head limit as exactly 1.57 rad.
+// Keep that model-specific value instead of the generic hardware value of
+// 180 degrees published for robots whose installed model permits it.
+constexpr double kRby1MV12HeadLimitDegrees = 1.57 * 180.0 / kPi;
 
 double degreesToRadians(double degrees)
 {
@@ -76,7 +79,10 @@ JointLimits jointLimits(
 
     if (groupName == QStringLiteral("head"))
     {
-        return {-180.0, 180.0};
+        return {
+            -kRby1MV12HeadLimitDegrees,
+            kRby1MV12HeadLimitDegrees
+        };
     }
 
     if (groupName == QStringLiteral("right_arm"))
@@ -84,9 +90,9 @@ JointLimits jointLimits(
         switch (jointIndex)
         {
         case 0: return {-180.0, 180.0};
-        case 1: return {-180.0, 0.0};
+        case 1: return {-180.0, 1.0};
         case 2: return {-180.0, 180.0};
-        case 3: return {-150.0, 0.0};
+        case 3: return {-150.0, 1.0};
         case 4: return {-180.0, 180.0};
         case 5: return {-90.0, 110.0};
         case 6: return {-155.0, 155.0};
@@ -99,9 +105,9 @@ JointLimits jointLimits(
         switch (jointIndex)
         {
         case 0: return {-180.0, 180.0};
-        case 1: return {0.0, 180.0};
+        case 1: return {-1.0, 180.0};
         case 2: return {-180.0, 180.0};
-        case 3: return {-150.0, 0.0};
+        case 3: return {-150.0, 1.0};
         case 4: return {-180.0, 180.0};
         case 5: return {-90.0, 110.0};
         case 6: return {-155.0, 155.0};
@@ -636,22 +642,6 @@ QWidget *MainWindow::buildUpperBodyTab()
     clearReadyButton_->setToolTip(
         QStringLiteral("Xóa pose đã lưu."));
 
-    minimumTimeSpinBox_ =
-        new QDoubleSpinBox(toolbarGroup);
-
-    minimumTimeSpinBox_->setRange(1.0, 10.0);
-    minimumTimeSpinBox_->setDecimals(1);
-    minimumTimeSpinBox_->setSingleStep(0.5);
-    minimumTimeSpinBox_->setValue(5.0);
-    minimumTimeSpinBox_->setSuffix(
-        QStringLiteral(" s"));
-
-    toolbarLayout->addWidget(
-        new QLabel(
-            QStringLiteral("Thời gian:"),
-            toolbarGroup));
-    minimumTimeSpinBox_->setMaximumWidth(96);
-    toolbarLayout->addWidget(minimumTimeSpinBox_);
     toolbarLayout->addWidget(initialButton_, 1);
     toolbarLayout->addWidget(armsReadyButton_, 1);
     toolbarLayout->addWidget(setReadyButton_, 1);
@@ -775,7 +765,7 @@ QGroupBox *MainWindow::buildJointGroup(
         // Col 3: minimum limit label
         auto *minLabel =
             new QLabel(
-                QString::number(limits.minimumDegrees, 'f', 1),
+                QString::number(limits.minimumDegrees, 'f', 2),
                 groupBox);
         minLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         minLabel->setStyleSheet(
@@ -822,7 +812,7 @@ QGroupBox *MainWindow::buildJointGroup(
         // Col 7: maximum limit label
         auto *maxLabel =
             new QLabel(
-                QString::number(limits.maximumDegrees, 'f', 1),
+                QString::number(limits.maximumDegrees, 'f', 2),
                 groupBox);
         maxLabel->setStyleSheet(
             QStringLiteral("color:#555555;font-size:9pt;"));
@@ -1090,8 +1080,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("arms_ready"),
-                QStringLiteral("Co hai tay"),
-                minimumTimeSpinBox_->value());
+                QStringLiteral("Co hai tay"));
         });
 
     connect(
@@ -1102,8 +1091,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("zero_pose"),
-                QStringLiteral("Initial"),
-                minimumTimeSpinBox_->value());
+                QStringLiteral("Initial"));
         });
 
     connect(
@@ -1114,8 +1102,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("set_ready_pose"),
-                QStringLiteral("Set Pose"),
-                minimumTimeSpinBox_->value());
+                QStringLiteral("Set Pose"));
         });
 
     connect(
@@ -1126,8 +1113,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("ready_pose"),
-                QStringLiteral("Go Pose"),
-                minimumTimeSpinBox_->value());
+                QStringLiteral("Go Pose"));
         });
 
     connect(
@@ -1138,8 +1124,7 @@ void MainWindow::connectSignals()
         {
             controller_->sendPose(
                 QStringLiteral("clear_ready_pose"),
-                QStringLiteral("Clear Pose"),
-                minimumTimeSpinBox_->value());
+                QStringLiteral("Clear Pose"));
         });
 
     connect(
@@ -1686,7 +1671,7 @@ void MainWindow::submitJointTarget(
         return;
     }
     controller_->moveJointTo(groupName, jointIndex,
-        degreesToRadians(targetDegrees), minimumTimeSpinBox_->value());
+        degreesToRadians(targetDegrees));
 }
 
 void MainWindow::showJointMotionError(const QString &message)

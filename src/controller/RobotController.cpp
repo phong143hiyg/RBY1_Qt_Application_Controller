@@ -397,8 +397,7 @@ void RobotController::refreshJoints()
 void RobotController::nudgeJoint(
     const QString &groupName,
     int jointIndex,
-    double delta,
-    double minimumTime)
+    double delta)
 {
     if (!client_->isConnected() || !state_->canControlJoints())
     {
@@ -412,23 +411,21 @@ void RobotController::nudgeJoint(
             *this,
             groupName,
             jointIndex,
-            delta,
-            minimumTime));
+            delta));
 }
 
 void RobotController::moveJointTo(const QString &groupName, int jointIndex,
-                                double targetRadians, double minimumTime)
+                                double targetRadians)
 {
     if (!client_->isConnected() || !state_->canControlJoints()
-        || !qIsFinite(targetRadians) || !qIsFinite(minimumTime)
-        || minimumTime < 0.0 || jointIndex < 0)
+        || !qIsFinite(targetRadians) || jointIndex < 0)
     {
         reportJointMotionFailure(QStringLiteral("Robot is not ready or the joint target is invalid."));
         return;
     }
     stopVelocityInternal();
-    // Read a new snapshot, rather than deriving a relative move from the
-    // UI's previous poll. Subsequent segments also use measured positions.
+    // Read a new snapshot rather than deriving a relative move from the UI's
+    // previous poll. The full target is then sent as one continuous motion.
     const quint64 requestId = requestJointSnapshotInternal();
     if (requestId == 0)
     {
@@ -436,7 +433,7 @@ void RobotController::moveJointTo(const QString &groupName, int jointIndex,
         return;
     }
     applyTransition(std::make_unique<JointBusyState>(
-        requestId, groupName, jointIndex, targetRadians, minimumTime));
+        requestId, groupName, jointIndex, targetRadians));
 }
 
 quint64 RobotController::requestJointSnapshotInternal()
@@ -446,15 +443,13 @@ quint64 RobotController::requestJointSnapshotInternal()
 
 void RobotController::sendPose(
     const QString &command,
-    const QString &operationName,
-    double minimumTime)
+    const QString &operationName)
 {
     applyTransition(
         state_->sendPose(
             *this,
             command,
-            operationName,
-            minimumTime));
+            operationName));
 }
 
 bool RobotController::sendSimpleInternal(
@@ -589,23 +584,17 @@ void RobotController::stopVelocityInternal()
 quint64 RobotController::sendJointNudgeInternal(
     const QString &groupName,
     int jointIndex,
-    double delta,
-    double minimumTime)
+    double delta)
 {
-    const int timeoutMs = qMax(
-        kCommandTimeoutMs,
-        static_cast<int>(qCeil(qMax(0.0, minimumTime) * 1000.0))
-            + 2000);
-
     const quint64 requestId = client_->moveJointRelative(
-        groupName, jointIndex, delta, minimumTime, timeoutMs);
+        groupName, jointIndex, delta, kMotionTimeoutMs);
 
     if (requestId != 0)
     {
         // SDK motion and status calls share a worker thread. Keep the last
         // status during the bounded request window if motion polling is delayed.
         extendStatusFreshnessGrace(
-            timeoutMs + kPostMotionStatusGraceMs);
+            kMotionTimeoutMs + kPostMotionStatusGraceMs);
     }
 
     return requestId;
@@ -613,21 +602,15 @@ quint64 RobotController::sendJointNudgeInternal(
 
 quint64 RobotController::sendPoseInternal(
     const QString &command,
-    const QString &operationName,
-    double minimumTime)
+    const QString &operationName)
 {
-    const int timeoutMs = qMax(
-        kCommandTimeoutMs,
-        static_cast<int>(qCeil(qMax(0.0, minimumTime) * 1000.0))
-            + 2000);
-
     const quint64 requestId = client_->executePose(
-        command, operationName, minimumTime, timeoutMs);
+        command, operationName, kMotionTimeoutMs);
 
     if (requestId != 0)
     {
         extendStatusFreshnessGrace(
-            timeoutMs + kPostMotionStatusGraceMs);
+            kMotionTimeoutMs + kPostMotionStatusGraceMs);
     }
 
     return requestId;

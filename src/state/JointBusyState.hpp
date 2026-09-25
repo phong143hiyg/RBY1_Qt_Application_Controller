@@ -6,19 +6,11 @@ class JointBusyState final : public RobotState
 {
 public:
     JointBusyState(quint64 snapshotRequestId, QString groupName, int jointIndex,
-                   double targetRadians, double minimumTime);
+                   double targetRadians);
 
     JointBusyState(
         QString pendingOperation,
         quint64 pendingRequestId);
-
-    JointBusyState(
-        QString pendingOperation,
-        quint64 pendingRequestId,
-        QString groupName,
-        int jointIndex,
-        double remainingDelta,
-        double segmentMinimumTime);
 
     [[nodiscard]] QString name() const override
     {
@@ -46,10 +38,7 @@ private:
     quint64 pendingRequestId_{0};
     QString groupName_;
     int jointIndex_{-1};
-    double remainingDelta_{0.0};
-    double segmentMinimumTime_{0.0};
     bool absoluteTarget_{false};
     double targetRadians_{0.0};
-    double requestedMinimumTime_{0.0};
-    int segmentsRemaining_{-1};
+    int correctionsRemaining_{8};
 };

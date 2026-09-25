@@ -21,9 +21,9 @@ public:
     quint64 setComponent(RobotComponent component, bool enabled,
                          const QString &operationName, int timeoutMs) override;
     quint64 moveJointRelative(const QString &groupName, int jointIndex,
-                              double delta, double minimumTime, int timeoutMs) override;
+                              double delta, int timeoutMs) override;
     quint64 executePose(const QString &pose, const QString &operationName,
-                        double minimumTime, int timeoutMs) override;
+                        int timeoutMs) override;
     quint64 executeSimple(const QString &action, const QString &operationName,
                           int timeoutMs) override;
     quint64 setVelocity(double x, double y, double angularZ) override;

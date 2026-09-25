@@ -38,7 +38,6 @@ std::unique_ptr<RobotState> RobotState::nudgeJoint(
     RobotController &controller,
     const QString &,
     int,
-    double,
     double)
 {
     controller.rejectAction(
@@ -52,8 +51,7 @@ std::unique_ptr<RobotState> RobotState::nudgeJoint(
 std::unique_ptr<RobotState> RobotState::sendPose(
     RobotController &controller,
     const QString &,
-    const QString &,
-    double)
+    const QString &)
 {
     controller.rejectAction(
         QStringLiteral(

@@ -19,9 +19,9 @@ private slots:
         QVERIFY(!client.isConnected());
         QCOMPARE(client.readStatus(100), quint64{0});
         QCOMPARE(client.readJoints(100), quint64{0});
-        QCOMPARE(client.moveJointRelative(QStringLiteral("head"), 0, 0.1, 0.2, 100), quint64{0});
+        QCOMPARE(client.moveJointRelative(QStringLiteral("head"), 0, 0.1, 100), quint64{0});
         QCOMPARE(client.setComponent(RobotComponent::Power, true, QStringLiteral("Power ON"), 100), quint64{0});
-        QCOMPARE(client.executePose(QStringLiteral("zero_pose"), QStringLiteral("Zero"), 1.0, 100), quint64{0});
+        QCOMPARE(client.executePose(QStringLiteral("zero_pose"), QStringLiteral("Zero"), 100), quint64{0});
         QCOMPARE(client.executeSimple(QStringLiteral("cancel"), QStringLiteral("Cancel"), 100), quint64{0});
         QCOMPARE(client.setVelocity(0.1, 0.0, 0.0), quint64{0});
         QCOMPARE(errors.count(), 6);
@@ -137,16 +137,16 @@ private slots:
         QCOMPARE(statusResponse.value(QStringLiteral("status")).toObject()
                      .value(QStringLiteral("state")).toString(), QStringLiteral("SDK connected"));
 
-        // Prove that enabling the manager is sufficient for a real motion
-        // command, then return the simulated head joint to its start position.
-        QVERIFY(client.moveJointRelative(QStringLiteral("head"), 0, 0.01, 0.3, 5000) != 0);
+        // A delta larger than the former 0.20 rad cap must execute as one
+        // motion, then return the simulated head joint to its start position.
+        QVERIFY(client.moveJointRelative(QStringLiteral("head"), 0, 0.30, 5000) != 0);
         QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 7000);
         QVERIFY(errors.isEmpty());
         const QJsonObject forwardResponse = responses.takeFirst().at(2).toJsonObject();
         QVERIFY2(forwardResponse.value(QStringLiteral("success")).toBool(),
                  qPrintable(forwardResponse.value(QStringLiteral("message")).toString()));
 
-        QVERIFY(client.moveJointRelative(QStringLiteral("head"), 0, -0.01, 0.3, 5000) != 0);
+        QVERIFY(client.moveJointRelative(QStringLiteral("head"), 0, -0.30, 5000) != 0);
         QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 7000);
         QVERIFY(errors.isEmpty());
         const QJsonObject returnResponse = responses.takeFirst().at(2).toJsonObject();
@@ -156,7 +156,7 @@ private slots:
         // A fresh SDK session has no user-defined ready pose. Arms Ready must
         // still execute by using the built-in RBY1 folded-arm preset.
         QVERIFY(client.executePose(QStringLiteral("arms_ready"),
-                                   QStringLiteral("Co hai tay"), 2.0, 7000) != 0);
+                                   QStringLiteral("Co hai tay"), 7000) != 0);
         QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 9000);
         QVERIFY(errors.isEmpty());
         const QJsonObject armsReadyResponse = responses.takeFirst().at(2).toJsonObject();
