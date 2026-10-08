@@ -1,6 +1,5 @@
 #include "controller/RobotController.hpp"
 
-#include "network/RobotClient.hpp"
 #include "sdk/SdkRobotClient.hpp"
 
 #include "state/ConnectedState.hpp"
@@ -10,6 +9,7 @@
 #include "state/RobotState.hpp"
 
 #include <QJsonValue>
+#include <QHash>
 #include <QTimer>
 #include <QtMath>
 
@@ -49,10 +49,35 @@ QString responseError(const QJsonObject &response)
 }
 
 RobotController::RobotController(QObject *parent)
+    : RobotController(new SdkRobotClient, parent)
+{
+}
+
+RobotController::RobotController(IRby1Client *client, QObject *parent)
     : QObject(parent),
-      client_(new SdkRobotClient(this)),
+      client_(client),
       state_(std::make_unique<DisconnectedState>())
 {
+    Q_ASSERT(client_);
+    if (!client_->parent())
+    {
+        client_->setParent(this);
+    }
+
+    bool linearOk = false;
+    const double configuredLinear = qEnvironmentVariable("RBY1_MAX_LINEAR_VELOCITY")
+                                        .toDouble(&linearOk);
+    if (linearOk && qIsFinite(configuredLinear) && configuredLinear > 0.0)
+    {
+        maxLinearVelocity_ = configuredLinear;
+    }
+    bool angularOk = false;
+    const double configuredAngular = qEnvironmentVariable("RBY1_MAX_ANGULAR_VELOCITY")
+                                         .toDouble(&angularOk);
+    if (angularOk && qIsFinite(configuredAngular) && configuredAngular > 0.0)
+    {
+        maxAngularVelocity_ = configuredAngular;
+    }
     qRegisterMetaType<SystemConfigurationView>();
 
     monotonicClock_.start();
@@ -87,31 +112,31 @@ RobotController::RobotController(QObject *parent)
 
     connect(
         client_,
-        &RobotClient::robotConnected,
+        &IRby1Client::robotConnected,
         this,
         &RobotController::handleRobotConnected);
 
     connect(
         client_,
-        &RobotClient::robotDisconnected,
+        &IRby1Client::robotDisconnected,
         this,
         &RobotController::handleRobotDisconnected);
 
     connect(
         client_,
-        &RobotClient::responseReceived,
+        &IRby1Client::responseReceived,
         this,
         &RobotController::handleResponse);
 
     connect(
         client_,
-        &RobotClient::requestTimedOut,
+        &IRby1Client::requestTimedOut,
         this,
         &RobotController::handleRequestTimeout);
 
     connect(
         client_,
-        &RobotClient::clientError,
+        &IRby1Client::clientError,
         this,
         [this](const QString &message)
         {
@@ -375,6 +400,19 @@ void RobotController::startDrive(
     double linearY,
     double angularZ)
 {
+    if (!qIsFinite(linearX) || !qIsFinite(linearY) || !qIsFinite(angularZ)
+        || qAbs(linearX) > maxLinearVelocity_
+        || qAbs(linearY) > maxLinearVelocity_
+        || qAbs(angularZ) > maxAngularVelocity_)
+    {
+        rejectAction(QStringLiteral(
+            "Base velocity is invalid or exceeds configured limits (%1 m/s, %2 rad/s).")
+                         .arg(maxLinearVelocity_)
+                         .arg(maxAngularVelocity_));
+        stopVelocityInternal();
+        return;
+    }
+
     applyTransition(
         state_->startDrive(*this, linearX, linearY, angularZ));
 }
@@ -394,51 +432,33 @@ void RobotController::refreshJoints()
     jointStatusRequestPendingId_ = client_->readJoints(kCommandTimeoutMs);
 }
 
-void RobotController::nudgeJoint(
-    const QString &groupName,
-    int jointIndex,
-    double delta)
-{
-    if (!client_->isConnected() || !state_->canControlJoints())
-    {
-        reportJointMotionFailure(QStringLiteral(
-            "Robot chưa sẵn sàng hoặc đang thực hiện một lệnh khác. Không thể thay đổi góc khớp."));
-        return;
-    }
-
-    applyTransition(
-        state_->nudgeJoint(
-            *this,
-            groupName,
-            jointIndex,
-            delta));
-}
-
 void RobotController::moveJointTo(const QString &groupName, int jointIndex,
                                 double targetRadians)
 {
+    const QHash<QString, int> groupSizes{
+        {QStringLiteral("torso"), 6},
+        {QStringLiteral("head"), 2},
+        {QStringLiteral("right_arm"), 7},
+        {QStringLiteral("left_arm"), 7}};
     if (!client_->isConnected() || !state_->canControlJoints()
-        || !qIsFinite(targetRadians) || jointIndex < 0)
+        || !groupSizes.contains(groupName)
+        || jointIndex < 0 || jointIndex >= groupSizes.value(groupName)
+        || !qIsFinite(targetRadians))
     {
         reportJointMotionFailure(QStringLiteral("Robot is not ready or the joint target is invalid."));
         return;
     }
     stopVelocityInternal();
-    // Read a new snapshot rather than deriving a relative move from the UI's
-    // previous poll. The full target is then sent as one continuous motion.
-    const quint64 requestId = requestJointSnapshotInternal();
+    const quint64 requestId = client_->moveJointTo(
+        groupName, jointIndex, targetRadians, kMotionTimeoutMs);
     if (requestId == 0)
     {
-        reportJointMotionFailure(QStringLiteral("Could not read the joint position before moving."));
+        reportJointMotionFailure(QStringLiteral("Could not send the absolute joint target to the Robot SDK."));
         return;
     }
+    extendStatusFreshnessGrace(kMotionTimeoutMs + kPostMotionStatusGraceMs);
     applyTransition(std::make_unique<JointBusyState>(
-        requestId, groupName, jointIndex, targetRadians));
-}
-
-quint64 RobotController::requestJointSnapshotInternal()
-{
-    return client_->readJoints(kCommandTimeoutMs);
+        QStringLiteral("Joint move"), requestId));
 }
 
 void RobotController::sendPose(
@@ -579,25 +599,6 @@ void RobotController::stopVelocityInternal()
             QStringLiteral("stop"),
             QStringLiteral("Stop base"));
     }
-}
-
-quint64 RobotController::sendJointNudgeInternal(
-    const QString &groupName,
-    int jointIndex,
-    double delta)
-{
-    const quint64 requestId = client_->moveJointRelative(
-        groupName, jointIndex, delta, kMotionTimeoutMs);
-
-    if (requestId != 0)
-    {
-        // SDK motion and status calls share a worker thread. Keep the last
-        // status during the bounded request window if motion polling is delayed.
-        extendStatusFreshnessGrace(
-            kMotionTimeoutMs + kPostMotionStatusGraceMs);
-    }
-
-    return requestId;
 }
 
 quint64 RobotController::sendPoseInternal(
@@ -1271,6 +1272,14 @@ void RobotController::updateStateFromStatus(
 
     if (state_->name() == QStringLiteral("Ready"))
     {
+        const QString remoteState = response.value(QStringLiteral("status"))
+                                        .toObject()
+                                        .value(QStringLiteral("state"))
+                                        .toString(QStringLiteral("not ready"));
+        appendStateLog(
+            QStringLiteral(
+                "Robot control left Ready (%1); SDK connection remains active.")
+                .arg(remoteState));
         transitionTo(std::make_unique<ConnectedState>());
     }
 }

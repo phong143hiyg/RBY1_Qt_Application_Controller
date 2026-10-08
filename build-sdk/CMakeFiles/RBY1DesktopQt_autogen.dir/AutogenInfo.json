@@ -375,6 +375,7 @@
 		"C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageMessage.cmake",
 		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in",
 		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in",
+		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in",
 		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in"
 	],
 	"CMAKE_SOURCE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern",
@@ -402,12 +403,6 @@
 			null
 		],
 		[
-			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.hpp",
-			"MU",
-			"UFQQIFJZKK/moc_RobotClient.cpp",
-			null
-		],
-		[
 			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningClient.hpp",
 			"MU",
 			"WWU2MRX4AZ/moc_PlanningClient.cpp",
@@ -417,6 +412,12 @@
 			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningInput.hpp",
 			"MU",
 			"WWU2MRX4AZ/moc_PlanningInput.cpp",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/IRby1Client.hpp",
+			"MU",
+			"YLT2QCEWL7/moc_IRby1Client.cpp",
 			null
 		],
 		[
@@ -593,17 +594,17 @@
 			null
 		],
 		[
-			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.cpp",
-			"MU",
-			null
-		],
-		[
 			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningClient.cpp",
 			"MU",
 			null
 		],
 		[
 			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningInput.cpp",
+			"MU",
+			null
+		],
+		[
+			"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/IRby1Client.cpp",
 			"MU",
 			null
 		],

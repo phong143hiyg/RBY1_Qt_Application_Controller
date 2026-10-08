@@ -358,4 +358,4 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1Deskto
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h \
   C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/model/SystemStatus.hpp \
-  C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.hpp
+  C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/IRby1Client.hpp

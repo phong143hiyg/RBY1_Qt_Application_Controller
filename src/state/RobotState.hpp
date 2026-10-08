@@ -53,12 +53,6 @@ public:
     virtual std::unique_ptr<RobotState> stopDrive(
         RobotController &controller);
 
-    virtual std::unique_ptr<RobotState> nudgeJoint(
-        RobotController &controller,
-        const QString &groupName,
-        int jointIndex,
-        double delta);
-
     virtual std::unique_ptr<RobotState> sendPose(
         RobotController &controller,
         const QString &command,

@@ -34,12 +34,6 @@ public:
         double linearY,
         double angularZ) override;
 
-    std::unique_ptr<RobotState> nudgeJoint(
-        RobotController &controller,
-        const QString &groupName,
-        int jointIndex,
-        double delta) override;
-
     std::unique_ptr<RobotState> sendPose(
         RobotController &controller,
         const QString &command,

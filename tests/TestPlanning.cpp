@@ -93,6 +93,7 @@ void TestPlanning::correlationAndWrongEnvelopes() {
     auto req = s.request("get_scene"); QCOMPARE(req.value("request_id").toString(), second);
     QVERIFY(req.value("request_id").isString()); QCOMPARE(req.value("protocol_version").toInt(), 1);
     // These were automatically returned by the server: issue two manually correlated queries.
+    QTRY_COMPARE(spy.count(), 2);
     spy.clear(); s.autoSync = false;
     const auto a = c.query("get_scene"), b = c.query("get_capabilities");
     QTRY_COMPARE(s.count("get_scene"), 4);

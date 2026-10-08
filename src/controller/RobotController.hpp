@@ -1,7 +1,7 @@
 #pragma once
 
 #include "model/SystemStatus.hpp"
-#include "network/RobotClient.hpp"
+#include "sdk/IRby1Client.hpp"
 
 #include <QElapsedTimer>
 #include <QJsonObject>
@@ -19,11 +19,12 @@ class RobotController final : public QObject
 
 public:
     explicit RobotController(QObject *parent = nullptr);
+    explicit RobotController(IRby1Client *client, QObject *parent = nullptr);
     ~RobotController() override;
 
     void connectToRobot(
         const QString &host = QStringLiteral("127.0.0.1"),
-        quint16 port = 55051,
+        quint16 port = 50051,
         Rby1Model model = Rby1Model::M);
     void disconnectFromRobot();
 
@@ -51,11 +52,6 @@ public:
     void stopDrive();
     void refreshJoints();
 
-    void nudgeJoint(
-        const QString &groupName,
-        int jointIndex,
-        double delta);
-
     void moveJointTo(const QString &groupName, int jointIndex,
                      double targetRadians);
 
@@ -76,13 +72,6 @@ public:
         double angularZ);
 
     void stopVelocityInternal();
-
-    quint64 sendJointNudgeInternal(
-        const QString &groupName,
-        int jointIndex,
-        double delta);
-
-    quint64 requestJointSnapshotInternal();
 
     quint64 sendPoseInternal(
         const QString &command,
@@ -190,7 +179,7 @@ private:
     [[nodiscard]] bool componentIsConfirmedOn(
         RobotComponent component) const;
 
-    RobotClient *client_{nullptr};
+    IRby1Client *client_{nullptr};
     Rby1Model activeModel_{Rby1Model::M};
     QTimer velocityTimer_;
     QTimer statusTimer_;
@@ -220,8 +209,13 @@ private:
     ComponentRuntime stream_;
 
     static constexpr int kCommandTimeoutMs = 3000;
-    static constexpr int kMotionTimeoutMs = 15000;
+    static constexpr int kMotionTimeoutMs = 30000;
     static constexpr int kConfirmationTimeoutMs = 5000;
     static constexpr int kStatusStaleMs = 2500;
     static constexpr int kPostMotionStatusGraceMs = 2500;
+    static constexpr double kDefaultMaxLinearVelocity = 0.30;
+    static constexpr double kDefaultMaxAngularVelocity = 0.60;
+
+    double maxLinearVelocity_{kDefaultMaxLinearVelocity};
+    double maxAngularVelocity_{kDefaultMaxAngularVelocity};
 };

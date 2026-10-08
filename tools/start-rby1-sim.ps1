@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
+param(
+    [string]$ComposeDirectory = $env:RBY1_SIM_COMPOSE_DIR,
+    [string]$WslDistribution = $(if ($env:RBY1_SIM_WSL_DISTRO) { $env:RBY1_SIM_WSL_DISTRO } else { "Ubuntu-20.04" })
+)
 
-$dockerDesktop = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
-$pythonw = "C:\Python314\pythonw.exe"
-$proxyScript = Join-Path $PSScriptRoot "rby1_docker_proxy.py"
-$composeDirectory = "/home/phongday/MyFolder-Linux/mynameisrobot/rby1-docker"
+$ErrorActionPreference = "Stop"
 
 function Test-LocalPort([int]$Port) {
     $client = [System.Net.Sockets.TcpClient]::new()
@@ -21,43 +21,24 @@ function Test-LocalPort([int]$Port) {
 
 docker info *> $null
 if ($LASTEXITCODE -ne 0) {
-    if (!(Test-Path -LiteralPath $dockerDesktop)) {
-        throw "Không tìm thấy Docker Desktop: $dockerDesktop"
-    }
-    Start-Process -FilePath $dockerDesktop -WindowStyle Hidden
-
-    $dockerReady = $false
-    for ($attempt = 0; $attempt -lt 30; ++$attempt) {
-        Start-Sleep -Seconds 2
-        docker info *> $null
-        if ($LASTEXITCODE -eq 0) {
-            $dockerReady = $true
-            break
-        }
-    }
-    if (!$dockerReady) {
-        throw "Docker Desktop chưa sẵn sàng sau 60 giây."
-    }
+    throw "Docker is not ready. Start Docker Desktop and try again."
 }
 
-wsl -d Ubuntu-20.04 -- bash -lc "cd '$composeDirectory' && docker compose up -d rby1-sim rby1-ros2"
+if ([string]::IsNullOrWhiteSpace($ComposeDirectory)) {
+    throw "Set RBY1_SIM_COMPOSE_DIR or pass -ComposeDirectory for the WSL compose directory."
+}
+
+wsl -d $WslDistribution -- bash -lc "cd '$ComposeDirectory' && docker compose up -d rby1-sim"
 if ($LASTEXITCODE -ne 0) {
-    throw "Không thể khởi động RBY1 simulator/model M."
-}
-
-if (!(Test-LocalPort 55051)) {
-    if (!(Test-Path -LiteralPath $pythonw)) {
-        throw "Không tìm thấy Python: $pythonw"
-    }
-    Start-Process -FilePath $pythonw -ArgumentList @($proxyScript) -WindowStyle Hidden
+    throw "Could not start the RBY1 simulator/model M."
 }
 
 for ($attempt = 0; $attempt -lt 15; ++$attempt) {
-    if (Test-LocalPort 55051) {
-        Write-Host "RBY1-M simulator is ready at 127.0.0.1:55051" -ForegroundColor Green
+    if (Test-LocalPort 50051) {
+        Write-Host "RBY1-M simulator SDK is ready at 127.0.0.1:50051" -ForegroundColor Green
         exit 0
     }
     Start-Sleep -Seconds 1
 }
 
-throw "Proxy không mở được 127.0.0.1:55051. Kiểm tra docker logs rby1-sim."
+throw "RBY1 SDK endpoint did not open 127.0.0.1:50051. Check port mapping and rby1-sim logs."

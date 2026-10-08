@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QSignalSpy>
 #include <QTest>
+#include <QtMath>
 #include <QTimer>
 #include <QUrl>
 
@@ -14,12 +15,12 @@ private slots:
     void disconnectedOperationsDoNotSendCommands()
     {
         SdkRobotClient client;
-        QSignalSpy errors(&client, &RobotClient::clientError);
-        QSignalSpy responses(&client, &RobotClient::responseReceived);
+        QSignalSpy errors(&client, &IRby1Client::clientError);
+        QSignalSpy responses(&client, &IRby1Client::responseReceived);
         QVERIFY(!client.isConnected());
         QCOMPARE(client.readStatus(100), quint64{0});
         QCOMPARE(client.readJoints(100), quint64{0});
-        QCOMPARE(client.moveJointRelative(QStringLiteral("head"), 0, 0.1, 100), quint64{0});
+        QCOMPARE(client.moveJointTo(QStringLiteral("head"), 0, 0.1, 100), quint64{0});
         QCOMPARE(client.setComponent(RobotComponent::Power, true, QStringLiteral("Power ON"), 100), quint64{0});
         QCOMPARE(client.executePose(QStringLiteral("zero_pose"), QStringLiteral("Zero"), 100), quint64{0});
         QCOMPARE(client.executeSimple(QStringLiteral("cancel"), QStringLiteral("Cancel"), 100), quint64{0});
@@ -31,8 +32,8 @@ private slots:
     void failedConnectionKeepsEventLoopResponsive()
     {
         SdkRobotClient client;
-        QSignalSpy errors(&client, &RobotClient::clientError);
-        QSignalSpy connected(&client, &RobotClient::robotConnected);
+        QSignalSpy errors(&client, &IRby1Client::clientError);
+        QSignalSpy connected(&client, &IRby1Client::robotConnected);
         int ticks = 0;
         QTimer timer;
         connect(&timer, &QTimer::timeout, this, [&ticks] { ++ticks; });
@@ -51,7 +52,7 @@ private slots:
     void disconnectCancelsPendingConnection()
     {
         SdkRobotClient client;
-        QSignalSpy connected(&client, &RobotClient::robotConnected);
+        QSignalSpy connected(&client, &IRby1Client::robotConnected);
         client.connectToRobot(QStringLiteral("127.0.0.1"), 1, Rby1Model::M);
         client.disconnectFromRobot();
         QTest::qWait(1100);
@@ -70,9 +71,9 @@ private slots:
         QVERIFY(address.port() > 0 && address.port() <= 65535);
 
         SdkRobotClient client;
-        QSignalSpy connected(&client, &RobotClient::robotConnected);
-        QSignalSpy errors(&client, &RobotClient::clientError);
-        QSignalSpy responses(&client, &RobotClient::responseReceived);
+        QSignalSpy connected(&client, &IRby1Client::robotConnected);
+        QSignalSpy errors(&client, &IRby1Client::clientError);
+        QSignalSpy responses(&client, &IRby1Client::responseReceived);
         const Rby1Model model = qEnvironmentVariable("RBY1_TEST_ROBOT_MODEL", QStringLiteral("m"))
                                     .trimmed().compare(QStringLiteral("a"), Qt::CaseInsensitive) == 0
             ? Rby1Model::A : Rby1Model::M;
@@ -100,22 +101,38 @@ private slots:
 
     void enablesControlManagerOnConfiguredSimulator()
     {
-        if (qEnvironmentVariableIntValue("RBY1_TEST_SIMULATOR_CONTROL") != 1)
-            QSKIP("Set RBY1_TEST_SIMULATOR_CONTROL=1 to test fault reset and Control Manager enable.");
+        if (qEnvironmentVariableIntValue("RBY1_TEST_ENABLE_MOTION") != 1)
+            QSKIP("Set RBY1_TEST_ENABLE_MOTION=1 only for an isolated simulator motion test.");
 
         const QUrl address(QStringLiteral("tcp://")
                            + qEnvironmentVariable("RBY1_TEST_ROBOT_ADDRESS",
-                                                  QStringLiteral("127.0.0.1:55051")));
+                                                  QStringLiteral("127.0.0.1:50051")));
         QVERIFY(!address.host().isEmpty());
         QVERIFY(address.port() > 0 && address.port() <= 65535);
 
         SdkRobotClient client;
-        QSignalSpy connected(&client, &RobotClient::robotConnected);
-        QSignalSpy errors(&client, &RobotClient::clientError);
-        QSignalSpy responses(&client, &RobotClient::responseReceived);
+        QSignalSpy connected(&client, &IRby1Client::robotConnected);
+        QSignalSpy errors(&client, &IRby1Client::clientError);
+        QSignalSpy responses(&client, &IRby1Client::responseReceived);
         client.connectToRobot(address.host(), static_cast<quint16>(address.port()), Rby1Model::M);
         QTRY_VERIFY_WITH_TIMEOUT(!connected.isEmpty() || !errors.isEmpty(), 8000);
         QVERIFY2(errors.isEmpty(), errors.isEmpty() ? "" : qPrintable(errors.first().first().toString()));
+
+        QVERIFY(client.setComponent(RobotComponent::Power, true,
+                                    QStringLiteral("Power ON"), 5000) != 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 7000);
+        QVERIFY(errors.isEmpty());
+        QJsonObject componentResponse = responses.takeFirst().at(2).toJsonObject();
+        QVERIFY2(componentResponse.value(QStringLiteral("success")).toBool(),
+                 qPrintable(componentResponse.value(QStringLiteral("message")).toString()));
+
+        QVERIFY(client.setComponent(RobotComponent::Servo, true,
+                                    QStringLiteral("Servo ON"), 5000) != 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 7000);
+        QVERIFY(errors.isEmpty());
+        componentResponse = responses.takeFirst().at(2).toJsonObject();
+        QVERIFY2(componentResponse.value(QStringLiteral("success")).toBool(),
+                 qPrintable(componentResponse.value(QStringLiteral("message")).toString()));
 
         const quint64 enableId = client.setComponent(
             RobotComponent::Stream, true, QStringLiteral("Control Manager ON"), 5000);
@@ -137,16 +154,60 @@ private slots:
         QCOMPARE(statusResponse.value(QStringLiteral("status")).toObject()
                      .value(QStringLiteral("state")).toString(), QStringLiteral("SDK connected"));
 
-        // A delta larger than the former 0.20 rad cap must execute as one
-        // motion, then return the simulated head joint to its start position.
-        QVERIFY(client.moveJointRelative(QStringLiteral("head"), 0, 0.30, 5000) != 0);
+        // Regression for the torso tracking faults: reproduce the manual upper
+        // targets shown in the UI before returning the complete robot to zero.
+        QVERIFY(client.moveJointTo(QStringLiteral("torso"), 3,
+                                   qDegreesToRadians(89.0), 12000) != 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 12000);
+        QVERIFY(errors.isEmpty());
+        const QJsonObject torsoForward = responses.takeFirst().at(2).toJsonObject();
+        QVERIFY2(torsoForward.value(QStringLiteral("success")).toBool(),
+                 qPrintable(torsoForward.value(QStringLiteral("message")).toString()));
+
+        QVERIFY(client.moveJointTo(QStringLiteral("torso"), 4,
+                                   qDegreesToRadians(29.0), 12000) != 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 12000);
+        QVERIFY(errors.isEmpty());
+        const QJsonObject torsoFifth = responses.takeFirst().at(2).toJsonObject();
+        QVERIFY2(torsoFifth.value(QStringLiteral("success")).toBool(),
+                 qPrintable(torsoFifth.value(QStringLiteral("message")).toString()));
+
+        // The SDK rejects the URDF-only +/-135 degree interval because the
+        // simulator's MuJoCo torso_5 joint physically stops at +/-90 degrees.
+        QVERIFY(client.moveJointTo(QStringLiteral("torso"), 5,
+                                   qDegreesToRadians(134.0), 12000) != 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 4000);
+        QVERIFY(errors.isEmpty());
+        const QJsonObject rejectedTorsoSixth = responses.takeFirst().at(2).toJsonObject();
+        QVERIFY(!rejectedTorsoSixth.value(QStringLiteral("success")).toBool());
+        QVERIFY(rejectedTorsoSixth.value(QStringLiteral("message")).toString()
+                    .contains(QStringLiteral("+/-90")));
+
+        QVERIFY(client.moveJointTo(QStringLiteral("torso"), 5,
+                                   qDegreesToRadians(89.0), 12000) != 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 14000);
+        QVERIFY(errors.isEmpty());
+        const QJsonObject torsoSixth = responses.takeFirst().at(2).toJsonObject();
+        QVERIFY2(torsoSixth.value(QStringLiteral("success")).toBool(),
+                 qPrintable(torsoSixth.value(QStringLiteral("message")).toString()));
+
+        QVERIFY(client.executePose(QStringLiteral("zero_pose"),
+                                   QStringLiteral("Initial"), 20000) != 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 22000);
+        QVERIFY(errors.isEmpty());
+        const QJsonObject zeroResponse = responses.takeFirst().at(2).toJsonObject();
+        QVERIFY2(zeroResponse.value(QStringLiteral("success")).toBool(),
+                 qPrintable(zeroResponse.value(QStringLiteral("message")).toString()));
+
+        // Absolute targets execute as bounded position motions.
+        QVERIFY(client.moveJointTo(QStringLiteral("head"), 0, 0.30, 8000) != 0);
         QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 7000);
         QVERIFY(errors.isEmpty());
         const QJsonObject forwardResponse = responses.takeFirst().at(2).toJsonObject();
         QVERIFY2(forwardResponse.value(QStringLiteral("success")).toBool(),
                  qPrintable(forwardResponse.value(QStringLiteral("message")).toString()));
 
-        QVERIFY(client.moveJointRelative(QStringLiteral("head"), 0, -0.30, 5000) != 0);
+        QVERIFY(client.moveJointTo(QStringLiteral("head"), 0, 0.0, 8000) != 0);
         QTRY_VERIFY_WITH_TIMEOUT(!responses.isEmpty() || !errors.isEmpty(), 7000);
         QVERIFY(errors.isEmpty());
         const QJsonObject returnResponse = responses.takeFirst().at(2).toJsonObject();

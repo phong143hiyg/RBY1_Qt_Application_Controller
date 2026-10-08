@@ -18,6 +18,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <variant>
 
 namespace
@@ -25,6 +26,15 @@ namespace
 using ModelA = rb::y1_model::A;
 using ModelM = rb::y1_model::M;
 using Token = std::shared_ptr<std::atomic_bool>;
+
+// Keep tracking error below the simulator's 0.2-rad protection threshold.
+// The SDK still chooses the shortest feasible duration; no minimum_time is set.
+constexpr double kJointVelocityLimitScale = 0.60;
+constexpr double kJointAccelerationLimitScale = 0.40;
+// model_v1.2.urdf advertises +/-135 degrees for torso_5, but the MuJoCo model
+// actually used by the simulator is limited to +/-90 degrees.  Reject the
+// unreachable interval before it can trip Control Manager tracking protection.
+constexpr double kTorso5SimulatorLimitRadians = 1.5708;
 
 template <typename Model>
 bool matchesModel(const rb::RobotInfo &info)
@@ -41,6 +51,12 @@ struct SdkState
 {
     Eigen::VectorXd position;
     rb::BatteryState battery_state;
+};
+
+struct JointMotionLimits
+{
+    Eigen::VectorXd velocity;
+    Eigen::VectorXd acceleration;
 };
 
 class CommandHandle
@@ -108,6 +124,24 @@ public:
     void Disconnect() { with([](auto &robot) { robot.Disconnect(); }); }
     bool IsConnected() const { return with([](auto &robot) { return robot.IsConnected(); }); }
     rb::RobotInfo GetRobotInfo() const { return with([](auto &robot) { return robot.GetRobotInfo(); }); }
+    JointMotionLimits GetJointMotionLimits() const
+    {
+        return with([](auto &robot) {
+            using RobotType = std::decay_t<decltype(robot)>;
+            using Model = std::conditional_t<
+                std::is_same_v<RobotType, rb::Robot<ModelA>>, ModelA, ModelM>;
+
+            auto dynamics = robot.GetDynamics();
+            if (!dynamics)
+                throw std::runtime_error("SDK did not return the robot dynamics model.");
+            const std::vector<std::string> jointNames(
+                Model::kRobotJointNames.begin(), Model::kRobotJointNames.end());
+            auto state = dynamics->MakeState(std::vector<std::string>{"base"}, jointNames);
+            return JointMotionLimits{
+                Eigen::VectorXd(dynamics->GetLimitQdotUpper(state)),
+                Eigen::VectorXd(dynamics->GetLimitQddotUpper(state))};
+        });
+    }
     SdkState GetState() const
     {
         return with([](auto &robot) {
@@ -162,7 +196,9 @@ QString motionFailureMessage(
     case FinishCode::kControlManagerIdle:
         return QStringLiteral("SDK motion failed because Control Manager is idle.");
     case FinishCode::kControlManagerFault:
-        return QStringLiteral("SDK motion failed because Control Manager is in Fault.");
+        return QStringLiteral(
+            "SDK motion stopped by Control Manager tracking protection. "
+            "The SDK connection is still active; prepare the robot again after the fault is cleared.");
     case FinishCode::kUnexpectedState:
         return QStringLiteral("SDK rejected the motion (finish_code=UnexpectedState). Check the target joint range and robot state.");
     case FinishCode::kUnknown:
@@ -207,7 +243,7 @@ void verifyTcpEndpoint(const QString &host, quint16 port, const QString &endpoin
     if (isLoopbackHost(host)) {
         guidance = QStringLiteral(
             "Không có RBY1 server trên máy này. Hãy khởi động simulator/server RBY1, "
-            "chạy tools/start-rby1-sim.ps1 rồi kết nối 127.0.0.1:55051.");
+            "chạy tools/start-rby1-sim.ps1 rồi kết nối trực tiếp 127.0.0.1:50051.");
     } else {
         guidance = QStringLiteral(
             "Hãy kiểm tra robot đã bật, máy tính cùng subnet với robot và firewall cho phép TCP 50051.");
@@ -236,6 +272,7 @@ struct SdkRobotClient::Impl
     // SDK objects and measured state are accessed exclusively on thread.
     std::shared_ptr<Robot> robot;
     rb::RobotInfo info;
+    JointMotionLimits jointMotionLimits;
     std::optional<Motion> motion;
     std::unique_ptr<CommandStream> velocityStream;
     std::optional<Eigen::VectorXd> readyPose;
@@ -276,11 +313,18 @@ struct SdkRobotClient::Impl
         // Cleanup may run after a network failure. Each operation is best effort.
         try { if (motion) motion->handle->Cancel(); } catch (...) {}
         motion.reset();
+        // A zero command is sent before releasing the stream.  The SDK
+        // control-hold timeout is a second safety net if the connection has
+        // already failed and the command cannot be delivered.
+        try { if (velocityStream && robot) velocity(0.0, 0.0, 0.0); } catch (...) {}
         try { if (velocityStream) velocityStream->Cancel(); } catch (...) {}
         velocityStream.reset();
+        try { if (robot) robot->CancelControl(); } catch (...) {}
         try { if (robot) robot->Disconnect(); } catch (...) {}
         robot.reset();
         readyPose.reset();
+        jointMotionLimits.velocity.resize(0);
+        jointMotionLimits.acceleration.resize(0);
     }
 
     void complete(quint64 id, const QJsonObject &response)
@@ -366,37 +410,57 @@ struct SdkRobotClient::Impl
         return state.position;
     }
 
-    std::unique_ptr<rb::RobotCommandBuilder> groupCommand(const QString &group, const Eigen::VectorXd &all)
+    std::unique_ptr<rb::JointPositionCommandBuilder> jointPositionCommand(
+        const QString &group, const Eigen::VectorXd &all)
     {
         const auto &idx = indices(group);
         require(!idx.empty(), "Robot does not have the requested joint group.");
         Eigen::VectorXd q(idx.size());
+        Eigen::VectorXd velocityLimit(idx.size());
+        Eigen::VectorXd accelerationLimit(idx.size());
+        require(jointMotionLimits.velocity.size() == info.degree_of_freedom
+                    && jointMotionLimits.acceleration.size() == info.degree_of_freedom,
+                "Robot joint motion limits are unavailable.");
         for (size_t i = 0; i < idx.size(); ++i) {
             require(idx[i] < all.size(), "SDK joint index is outside the position vector.");
             q[i] = all[idx[i]];
+            velocityLimit[i] = jointMotionLimits.velocity[idx[i]]
+                * kJointVelocityLimitScale;
+            accelerationLimit[i] = jointMotionLimits.acceleration[idx[i]]
+                * kJointAccelerationLimitScale;
         }
-        rb::JointPositionCommandBuilder position;
-        const Eigen::VectorXd velocityLimit =
-            Eigen::VectorXd::Constant(q.size(), 1.0); // rad/s
+        // MuJoCo can report a small endpoint overshoot (about 90.4 degrees).
+        // Normalize that measured hold target so another torso joint remains
+        // controllable after recovery from a previous fault.
+        if (group == QStringLiteral("torso") && q.size() > 5)
+            q[5] = qBound(-kTorso5SimulatorLimitRadians,
+                          q[5], kTorso5SimulatorLimitRadians);
+        require(q.allFinite() && velocityLimit.allFinite() && accelerationLimit.allFinite()
+                    && (velocityLimit.array() > 0.0).all()
+                    && (accelerationLimit.array() > 0.0).all(),
+                "Robot returned invalid joint motion limits.");
+        auto position = std::make_unique<rb::JointPositionCommandBuilder>();
+        position->SetPosition(q)
+            .SetVelocityLimit(velocityLimit)
+            .SetAccelerationLimit(accelerationLimit);
+        return position;
+    }
 
-        const Eigen::VectorXd accelerationLimit =
-            Eigen::VectorXd::Constant(q.size(), 2.0); // rad/s²
-
-        position
-                .SetPosition(q);
-                .SetVeclocityLimit(velocityLimit);
-                .SetAccelerationLimit(accelerationLimit);
+    std::unique_ptr<rb::RobotCommandBuilder> groupCommand(
+        const QString &group, const Eigen::VectorXd &all)
+    {
+        auto position = jointPositionCommand(group, all);
         rb::ComponentBasedCommandBuilder components;
         if (group == QStringLiteral("head")) {
-            components.SetHeadCommand(rb::HeadCommandBuilder().SetCommand(position));
+            components.SetHeadCommand(rb::HeadCommandBuilder().SetCommand(*position));
         } else {
             rb::BodyComponentBasedCommandBuilder body;
             if (group == QStringLiteral("torso"))
-                body.SetTorsoCommand(rb::TorsoCommandBuilder().SetCommand(position));
+                body.SetTorsoCommand(rb::TorsoCommandBuilder().SetCommand(*position));
             else if (group == QStringLiteral("right_arm"))
-                body.SetRightArmCommand(rb::ArmCommandBuilder().SetCommand(position));
+                body.SetRightArmCommand(rb::ArmCommandBuilder().SetCommand(*position));
             else
-                body.SetLeftArmCommand(rb::ArmCommandBuilder().SetCommand(position));
+                body.SetLeftArmCommand(rb::ArmCommandBuilder().SetCommand(*position));
             components.SetBodyCommand(rb::BodyCommandBuilder(body));
         }
         auto command = std::make_unique<rb::RobotCommandBuilder>();
@@ -453,7 +517,7 @@ struct SdkRobotClient::Impl
     }
 };
 
-SdkRobotClient::SdkRobotClient(QObject *parent) : RobotClient(parent), impl_(std::make_unique<Impl>(this)) {}
+SdkRobotClient::SdkRobotClient(QObject *parent) : IRby1Client(parent), impl_(std::make_unique<Impl>(this)) {}
 SdkRobotClient::~SdkRobotClient() = default;
 bool SdkRobotClient::isConnected() const { return impl_->connected; }
 
@@ -488,6 +552,10 @@ void SdkRobotClient::connectToRobot(const QString &host, quint16 port, Rby1Model
                     "Robot model/joint layout does not match the selected " + std::string(expectedModel)
                         + ": endpoint reported " + p.info.robot_model_name
                         + " (" + std::to_string(p.info.degree_of_freedom) + " joints).");
+            p.jointMotionLimits = p.robot->GetJointMotionLimits();
+            require(p.jointMotionLimits.velocity.size() == p.info.degree_of_freedom
+                        && p.jointMotionLimits.acceleration.size() == p.info.degree_of_freedom,
+                    "Robot dynamics model returned an unexpected number of joint limits.");
             QMetaObject::invokeMethod(this, [this, session] {
                 auto &p = *impl_;
                 if (p.session != session || !session->load()) return;
@@ -573,8 +641,55 @@ quint64 SdkRobotClient::setComponent(RobotComponent component, bool enabled,
         const auto &robot = impl_->robot;
         bool ok;
         switch (component) {
-        case RobotComponent::Power: ok = enabled ? robot->PowerOn(".*") : robot->PowerOff(".*"); break;
-        case RobotComponent::Servo: ok = enabled ? robot->ServoOn(".*") : robot->ServoOff(".*"); break;
+        case RobotComponent::Power:
+            if (enabled) {
+                ok = robot->IsPowerOn(".*") || robot->PowerOn(".*");
+                break;
+            }
+
+            // Power-off is deliberately transactional and ordered.  Never
+            // remove power while a stream/motion still owns control or while
+            // the servos are enabled.
+            if (impl_->motion) impl_->motion->handle->Cancel();
+            impl_->motion.reset();
+            if (impl_->velocityStream) {
+                try { impl_->velocity(0.0, 0.0, 0.0); } catch (...) {}
+                impl_->velocityStream->Cancel();
+                impl_->velocityStream.reset();
+            }
+            (void)robot->CancelControl();
+            if (robot->GetControlManagerState().state
+                == rb::ControlManagerState::State::kEnabled) {
+                require(robot->DisableControlManager(),
+                        "Could not disable Control Manager before power-off.");
+            }
+            if (robot->IsServoOn(".*")) {
+                require(robot->ServoOff(".*"),
+                        "Could not disable servos before power-off.");
+            }
+            ok = robot->PowerOff(".*");
+            break;
+        case RobotComponent::Servo:
+            if (enabled) {
+                if (robot->IsServoOn(".*")) {
+                    ok = true;
+                    break;
+                }
+                const auto manager = robot->GetControlManagerState();
+                if (manager.state == rb::ControlManagerState::State::kMinorFault
+                    || manager.state == rb::ControlManagerState::State::kMajorFault) {
+                    require(robot->ResetFaultControlManager(),
+                            "Control Manager fault could not be reset before enabling servos.");
+                }
+            }
+            if (!enabled
+                && robot->GetControlManagerState().state
+                    == rb::ControlManagerState::State::kEnabled) {
+                require(robot->DisableControlManager(),
+                        "Could not disable Control Manager before servo-off.");
+            }
+            ok = enabled ? robot->ServoOn(".*") : robot->ServoOff(".*");
+            break;
         case RobotComponent::Stream:
             if (!enabled) {
                 ok = robot->DisableControlManager();
@@ -585,6 +700,10 @@ quint64 SdkRobotClient::setComponent(RobotComponent component, bool enabled,
             // COMMAND_ENABLE until the fault has first been reset to Idle.
             {
                 const auto manager = robot->GetControlManagerState();
+                if (manager.state == rb::ControlManagerState::State::kEnabled) {
+                    ok = true;
+                    break;
+                }
                 if (manager.state == rb::ControlManagerState::State::kMinorFault
                     || manager.state == rb::ControlManagerState::State::kMajorFault) {
                     require(robot->ResetFaultControlManager(),
@@ -599,16 +718,25 @@ quint64 SdkRobotClient::setComponent(RobotComponent component, bool enabled,
     });
 }
 
-quint64 SdkRobotClient::moveJointRelative(const QString &group, int index, double delta,
-                                         int timeoutMs)
+quint64 SdkRobotClient::moveJointTo(const QString &group, int index,
+                                    double targetRadians, int timeoutMs)
 {
-    return impl_->submit(QStringLiteral("Joint nudge"), timeoutMs, [this, group, index, delta](quint64 id, const Token &valid) {
-        require(qIsFinite(delta), "Invalid joint delta.");
+    return impl_->submit(QStringLiteral("Joint move"), timeoutMs,
+                         [this, group, index, targetRadians](quint64 id, const Token &valid) {
+        require(qIsFinite(targetRadians), "Invalid absolute joint target.");
         const auto &indices = impl_->indices(group);
         require(index >= 0 && index < static_cast<int>(indices.size()), "Joint index is outside the group.");
+        if (group == QStringLiteral("torso") && index == 5) {
+            require(targetRadians >= -kTorso5SimulatorLimitRadians
+                        && targetRadians <= kTorso5SimulatorLimitRadians,
+                    "Torso phi6 target exceeds the simulator limit of +/-90 degrees.");
+        }
         auto positions = impl_->measuredPositions();
-        positions[indices[index]] += delta;
-        impl_->startMotion(id, valid, *impl_->groupCommand(group, positions));
+        const auto absoluteIndex = indices[index];
+        require(absoluteIndex < positions.size(), "SDK joint index is outside the position vector.");
+        positions[absoluteIndex] = targetRadians;
+        impl_->startMotion(
+            id, valid, *impl_->groupCommand(group, positions));
     });
 }
 
@@ -656,12 +784,7 @@ quint64 SdkRobotClient::executePose(const QString &pose, const QString &operatio
         }
         rb::BodyComponentBasedCommandBuilder body;
         auto positionFor = [this, &target](const QString &name) {
-            const auto &indices = impl_->indices(name);
-            Eigen::VectorXd q(indices.size());
-            for (size_t i = 0; i < indices.size(); ++i) q[i] = target[indices[i]];
-            auto position = std::make_unique<rb::JointPositionCommandBuilder>();
-            position->SetPosition(q);
-            return position;
+            return impl_->jointPositionCommand(name, target);
         };
         body.SetRightArmCommand(rb::ArmCommandBuilder().SetCommand(*positionFor(QStringLiteral("right_arm"))));
         body.SetLeftArmCommand(rb::ArmCommandBuilder().SetCommand(*positionFor(QStringLiteral("left_arm"))));

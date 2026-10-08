@@ -1,13 +1,13 @@
 #pragma once
 
-#include "network/RobotClient.hpp"
+#include "sdk/IRby1Client.hpp"
 
 #include <functional>
 #include <memory>
 
 // Adapter from the manufacturer SDK to the controller's in-process view model.
 // QJsonObject is never sent over a robot-command socket.
-class SdkRobotClient final : public RobotClient
+class SdkRobotClient final : public IRby1Client
 {
 public:
     explicit SdkRobotClient(QObject *parent = nullptr);
@@ -20,8 +20,8 @@ public:
     quint64 readJoints(int timeoutMs) override;
     quint64 setComponent(RobotComponent component, bool enabled,
                          const QString &operationName, int timeoutMs) override;
-    quint64 moveJointRelative(const QString &groupName, int jointIndex,
-                              double delta, int timeoutMs) override;
+    quint64 moveJointTo(const QString &groupName, int jointIndex,
+                        double targetRadians, int timeoutMs) override;
     quint64 executePose(const QString &pose, const QString &operationName,
                         int timeoutMs) override;
     quint64 executeSimple(const QString &action, const QString &operationName,

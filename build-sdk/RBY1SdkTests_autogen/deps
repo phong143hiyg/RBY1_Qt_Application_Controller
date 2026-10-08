@@ -12,6 +12,7 @@ RBY1SdkTests_autogen/timestamp: \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QTimer \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QUrl \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/QVariant \
+	C:/Qt/6.11.1/mingw_64/include/QtCore/QtMath \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/q17memory.h \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/q20bit.h \
 	C:/Qt/6.11.1/mingw_64/include/QtCore/q20functional.h \
@@ -730,8 +731,8 @@ RBY1SdkTests_autogen/timestamp: \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1SdkTests_autogen/moc_predefs.h \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/conan/conan_toolchain.cmake \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/model/SystemStatus.hpp \
-	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.cpp \
-	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.hpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/IRby1Client.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/IRby1Client.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/SdkRobotClient.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/SdkRobotClient.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/tests/TestSdkRobotClient.cpp \

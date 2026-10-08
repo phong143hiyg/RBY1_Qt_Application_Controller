@@ -1,10 +1,10 @@
-# Planning NDJSON v1 — Qt / ROS 2 contract
+# Planning NDJSON v1 — Qt / external backend contract
 
-Đặc tả gốc: [prompts-test-moveit2-rby1.md](../question/prompts-test-moveit2-rby1.md), phần “Đặc tả chung”. Đây là service **mới**, không phải tính năng đã tồn tại của App Bridge. Implementation ROS 2 phải dùng cùng contract; không đưa ROS/MoveIt vào build Qt.
+Đây là service planning **độc lập**, không phải App Bridge và không thuộc đường điều khiển robot. Backend phải dùng cùng contract; Qt không phụ thuộc framework planning cụ thể.
 
 ## Transport và envelope
 
-Socket planning riêng, default localhost:8082; robot command legacy vẫn ở 8081. UTF-8 NDJSON, một JSON object/dòng, tối đa 1,048,576 byte trước LF. TCP có thể fragment/coalesce; CRLF được chấp nhận. Frame JSON lỗi, vượt giới hạn hoặc không phải UTF-8/object phải được từ chối. Qt đóng kết nối planning khi parser lỗi; không biến frame lỗi thành ACK. Parser robot cũ giữ default không giới hạn để không đổi wire contract cũ.
+Socket planning riêng, default localhost:8082. Robot command legacy và port 8081 đã bị loại bỏ; planning không có quyền execute robot. UTF-8 NDJSON dùng một JSON object/dòng, tối đa 1,048,576 byte trước LF. TCP có thể fragment/coalesce; CRLF được chấp nhận. Frame JSON lỗi, vượt giới hạn hoặc không phải UTF-8/object phải bị từ chối. Qt đóng kết nối planning khi parser lỗi và không biến frame lỗi thành ACK.
 
 ```json
 {"protocol_version":1,"type":"request","request_id":"session-1","command":"plan_pick_place","payload":{}}
@@ -33,7 +33,7 @@ Không có `execute_plan`; không stream waypoint tới Qt/driver. Một worker 
 
 ## Capability và scene snapshot
 
-Các tên trường cụ thể hóa đặc tả chung, xem [JSON fixture dùng chung](fixtures/contract-v1.json). Chia sẻ file này với repository ROS 2; mọi thay đổi schema phải được thống nhất hai phía.
+Các tên trường cụ thể hóa đặc tả chung, xem [JSON fixture dùng chung](fixtures/contract-v1.json). Chia sẻ file này với backend planning; mọi thay đổi schema phải được thống nhất hai phía.
 
 Capability: `backend_mode` (`mock` hoặc `fake_hardware` ở mốc này), `model`, `model_version`, `robot_model_id`, `planning_frame`, `groups:[string]`, `tcp_mappings:[{group,tcp_frame,link}]`, `supported_commands:[string]`, `scenarios:[string]`, `execution_enabled:false`, `max_frame_bytes`, `suggested_planning_timeout_s`, `max_planning_timeout_s`, `plan_ttl_s`, `task_status_ttl_s`. Model ID thật phải chứa version và dấu vết/hash URDF/SRDF/config. Qt từ chối capability thiếu trường thiết yếu hoặc execution enabled, chỉ bật command được công bố. Timeout backend tối đa Qt chấp nhận: 3600 s.
 
@@ -47,11 +47,11 @@ Pose: `{frame_id,position:[x,y,z],orientation_xyzw:[x,y,z,w]}`. Số hữu hạn
 
 `cartesian_directions:{approach,lift,lower,retreat}`; mỗi hướng `{frame_id,vector:[x,y,z]}` unit vector. Các hướng thuộc snapshot/revision; request dùng snapshot này, không ghi đè bằng hướng hard-code trong Qt. `defaults` có các khoảng cách, timeout và scaling như payload plan. Khoảng cách ≥0; scaling trong (0,1]; timeout hữu hạn, >0 và ≤ capability. Thiếu defaults để ô trống; không có giá trị hợp lệ giả định.
 
-Mốc đầu một tay, ưu tiên `right_arm` nếu có, base/torso cố định. Qt chỉ chấp nhận scene `right_arm|left_arm`; ROS chọn scene tương ứng model đã xác minh. Scene/start state thực phải hiệu chỉnh qua TF/joint state/IK/start collision, lưu fixture ROS với model/config/start state/seed; JSON mock minh họa không thay thế fixture planning thật.
+Mốc đầu một tay, ưu tiên `right_arm` nếu có, base/torso cố định. Qt chỉ chấp nhận scene `right_arm|left_arm`; backend chọn scene tương ứng model đã xác minh. Scene/start state thực phải hiệu chỉnh qua transform, joint state, IK và start collision; JSON mock minh họa không thay thế fixture planning thật.
 
 ## Terminal result, status và cancellation
 
-`succeeded.payload` bắt buộc: `plan_id`, `scene_revision`, `robot_model_id`, `group`, `frame`, `tcp_frame`, `planning_time_s`, `duration_s`, `waypoint_count`, `joint_names`, `stages`, `validation`. Stages lưu metadata attach/detach/gripper/scene diffs phía ROS; Qt không ghép hoặc thực thi trajectory.
+`succeeded.payload` bắt buộc: `plan_id`, `scene_revision`, `robot_model_id`, `group`, `frame`, `tcp_frame`, `planning_time_s`, `duration_s`, `waypoint_count`, `joint_names`, `stages`, `validation`. Stages lưu metadata attach/detach/gripper/scene diffs phía backend; Qt không ghép hoặc thực thi trajectory.
 
 Validation thật: `simulated:false`, `joint_limits:"passed"`, `collision:"passed"`, `timing:"passed"`; thêm độ phân giải nội suy, giới hạn và phạm vi kiểm tra. Collision samples không chứng minh collision-free liên tục. Result không khớp snapshot/model/group/frame/TCP hoặc validation thiếu/sai bị Qt từ chối.
 
@@ -63,4 +63,4 @@ ACK cancel không kết thúc task. Worker phải có deadline hữu hạn, ch�
 
 Reconnect: `get_capabilities → get_task_status` (nếu từng có task) `→ get_scene`; hoàn tất đối chiếu mới mở thao tác. Không tự gửi lại planning. Unknown/expired task (`STATE_UNAVAILABLE`) giữ trạng thái chưa đồng bộ; không đoán đã cancelled. Scene/model/frame/TCP thay đổi hoặc plan TTL hết làm plan mất hiệu lực; preview backend cũng kiểm tra TTL/revision/model/start snapshot. Qt polling capability/scene/status mỗi 2 s khi đồng bộ.
 
-Plan ROS lưu theo TTL cùng start state, model ID, scene revision và snapshot/diffs nhất quán. Task status giữ theo TTL để reconnect. Preview không thay đổi scene live thành final state giả. Fake hardware/attach-detach kiểm chứng hình học/chuyển động; chưa chứng minh lực gắp, ma sát hoặc chống trượt/rơi.
+Backend lưu plan theo TTL cùng start state, model ID, scene revision và snapshot/diffs nhất quán. Task status giữ theo TTL để reconnect. Preview không thay đổi scene live thành final state giả. Fake hardware/attach-detach kiểm chứng hình học/chuyển động; chưa chứng minh lực gắp, ma sát hoặc chống trượt/rơi.

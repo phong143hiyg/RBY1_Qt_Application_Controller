@@ -72,7 +72,9 @@ JointLimits jointLimits(
         case 2: return {-150.0, 90.0};
         case 3: return {-45.0, 90.0};
         case 4: return {-30.0, 30.0};
-        case 5: return {-135.0, 135.0};
+        // The RBY1-M v1.2 MuJoCo model is +/-90 degrees here even though its
+        // bundled URDF advertises +/-135 degrees.
+        case 5: return {-90.0, 90.0};
         default: break;
         }
     }
@@ -305,9 +307,9 @@ void MainWindow::buildInterface()
 
     robotAddressEdit_ = new QLineEdit(centralWidget);
     robotAddressEdit_->setObjectName(QStringLiteral("robotAddressEdit"));
-    robotAddressEdit_->setText(qEnvironmentVariable("RBY1_ROBOT_ADDRESS", QStringLiteral("127.0.0.1:55051")));
+    robotAddressEdit_->setText(qEnvironmentVariable("RBY1_ROBOT_ADDRESS", QStringLiteral("127.0.0.1:50051")));
     robotAddressEdit_->setToolTip(QStringLiteral(
-        "Simulator RBY1-M trên máy này dùng 127.0.0.1:55051."));
+        "Simulator/robot SDK mặc định dùng gRPC trực tiếp tại 127.0.0.1:50051."));
     headerLayout->addWidget(new QLabel(QStringLiteral("Robot:"), centralWidget));
     robotAddressEdit_->setMaximumWidth(240);
     headerLayout->addWidget(robotAddressEdit_);
@@ -315,9 +317,13 @@ void MainWindow::buildInterface()
     robotModelComboBox_ = new QComboBox(centralWidget);
     robotModelComboBox_->setObjectName(QStringLiteral("robotModelComboBox"));
     robotModelComboBox_->addItem(QStringLiteral("RBY1-M"), static_cast<int>(Rby1Model::M));
-    robotModelComboBox_->setCurrentIndex(0);
-    robotModelComboBox_->setEnabled(false);
-    robotModelComboBox_->setToolTip(QStringLiteral("Ứng dụng được cấu hình cố định cho RBY1-M."));
+    robotModelComboBox_->addItem(QStringLiteral("RBY1-A"), static_cast<int>(Rby1Model::A));
+    const QString configuredModel = qEnvironmentVariable(
+        "RBY1_ROBOT_MODEL", QStringLiteral("m")).trimmed();
+    robotModelComboBox_->setCurrentIndex(
+        configuredModel.compare(QStringLiteral("a"), Qt::CaseInsensitive) == 0 ? 1 : 0);
+    robotModelComboBox_->setToolTip(QStringLiteral(
+        "Chọn model đúng với endpoint; có thể đặt mặc định bằng RBY1_ROBOT_MODEL=a|m."));
     headerLayout->addWidget(robotModelComboBox_);
 
     connectButton_ =
@@ -713,8 +719,9 @@ QGroupBox *MainWindow::buildJointGroup(
     layout->setVerticalSpacing(3);
     groupBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
-    // Col 5 (slider) stretches; all other columns are fixed.
-    layout->setColumnStretch(5, 1);
+    // Col 4 contains the slider. Let it consume all horizontal space that
+    // remains after the fixed labels so the track reaches across the group.
+    layout->setColumnStretch(4, 1);
 
     QVector<JointAngleEdit *> labels;
     labels.reserve(jointCount);
@@ -771,17 +778,7 @@ QGroupBox *MainWindow::buildJointGroup(
         minLabel->setStyleSheet(
             QStringLiteral("color:#555555;font-size:9pt;"));
 
-        // Col 4: ◄ nudge-left button
-        auto *minusButton =
-            new QPushButton(
-                QStringLiteral("\u25C4"),
-                groupBox);
-        minusButton->setFixedSize(22, 22);
-        minusButton->setObjectName(QStringLiteral("%1Joint%2Minus").arg(groupName).arg(index));
-        minusButton->setToolTip(
-            QStringLiteral("Giảm 1°"));
-
-        // Col 5: position slider (stretches)
+        // Col 4: absolute position slider (stretches)
         auto *adjustSlider =
             new QSlider(Qt::Horizontal, groupBox);
         adjustSlider->setObjectName(
@@ -799,17 +796,7 @@ QGroupBox *MainWindow::buildJointGroup(
             QStringLiteral(
                 "Kéo và nhả để đặt vị trí khớp."));
 
-        // Col 6: ► nudge-right button
-        auto *plusButton =
-            new QPushButton(
-                QStringLiteral("\u25BA"),
-                groupBox);
-        plusButton->setFixedSize(22, 22);
-        plusButton->setObjectName(QStringLiteral("%1Joint%2Plus").arg(groupName).arg(index));
-        plusButton->setToolTip(
-            QStringLiteral("Tăng 1°"));
-
-        // Col 7: maximum limit label
+        // Col 5: maximum limit label
         auto *maxLabel =
             new QLabel(
                 QString::number(limits.maximumDegrees, 'f', 2),
@@ -836,24 +823,6 @@ QGroupBox *MainWindow::buildJointGroup(
             });
 
         connect(
-            minusButton,
-            &QPushButton::clicked,
-            this,
-            [this, groupName, index]()
-            {
-                submitJointStep(groupName, index, -1.0);
-            });
-
-        connect(
-            plusButton,
-            &QPushButton::clicked,
-            this,
-            [this, groupName, index]()
-            {
-                submitJointStep(groupName, index, 1.0);
-            });
-
-        connect(
             adjustSlider,
             &QSlider::sliderReleased,
             this,
@@ -874,10 +843,8 @@ QGroupBox *MainWindow::buildJointGroup(
         layout->addWidget(valueLabel,   row, 1);
         layout->addWidget(unitLabel,    row, 2);
         layout->addWidget(minLabel,     row, 3);
-        layout->addWidget(minusButton,  row, 4);
-        layout->addWidget(adjustSlider, row, 5);
-        layout->addWidget(plusButton,   row, 6);
-        layout->addWidget(maxLabel,     row, 7);
+        layout->addWidget(adjustSlider, row, 4);
+        layout->addWidget(maxLabel,     row, 5);
 
         labels.push_back(valueLabel);
         sliders.push_back(adjustSlider);
@@ -1269,7 +1236,7 @@ void MainWindow::applyControllerState(
 
     pingButton_->setEnabled(connected);
     robotAddressEdit_->setEnabled(!connected);
-    robotModelComboBox_->setEnabled(false);
+    robotModelComboBox_->setEnabled(!connected);
 
     updateSystemSwitchAvailability();
 
@@ -1630,22 +1597,6 @@ void MainWindow::updateJointDisplay(
             sliders[index]->setValue(center);
         }
     }
-}
-
-void MainWindow::submitJointStep(const QString &groupName, int jointIndex, double stepDegrees)
-{
-    const auto positions = jointConfirmedDegrees_.constFind(groupName);
-    if (positions == jointConfirmedDegrees_.cend()
-        || jointIndex < 0 || jointIndex >= positions->size()
-        || !qIsFinite(positions->at(jointIndex)))
-    {
-        submitJointTarget(groupName, jointIndex, 0.0);
-        return;
-    }
-    const JointLimits limits = manualJointLimits(groupName, jointIndex);
-    submitJointTarget(groupName, jointIndex,
-        qBound(limits.minimumDegrees, positions->at(jointIndex) + stepDegrees,
-               limits.maximumDegrees));
 }
 
 void MainWindow::submitJointTarget(

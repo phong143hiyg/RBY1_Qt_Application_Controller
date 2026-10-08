@@ -34,20 +34,6 @@ std::unique_ptr<RobotState> RobotState::stopDrive(
     return nullptr;
 }
 
-std::unique_ptr<RobotState> RobotState::nudgeJoint(
-    RobotController &controller,
-    const QString &,
-    int,
-    double)
-{
-    controller.rejectAction(
-        QStringLiteral(
-            "Không thể điều khiển khớp trong trạng thái %1.")
-            .arg(name()));
-
-    return nullptr;
-}
-
 std::unique_ptr<RobotState> RobotState::sendPose(
     RobotController &controller,
     const QString &,

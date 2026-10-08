@@ -76,7 +76,6 @@ private:
         const QJsonObject &response);
 
     void submitJointTarget(const QString &groupName, int jointIndex, double targetDegrees);
-    void submitJointStep(const QString &groupName, int jointIndex, double stepDegrees);
     void showJointMotionError(const QString &message);
 
     RobotController *controller_{nullptr};

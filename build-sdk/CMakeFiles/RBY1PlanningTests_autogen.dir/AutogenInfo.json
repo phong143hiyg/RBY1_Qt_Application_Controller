@@ -375,6 +375,7 @@
 		"C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageMessage.cmake",
 		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in",
 		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in",
+		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in",
 		"C:/Qt/6.11.1/mingw_64/lib/cmake/Qt6/windows/app.exe.manifest.in"
 	],
 	"CMAKE_SOURCE_DIR" : "C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern",
@@ -479,6 +480,7 @@
 	"MOC_RELAXED_MODE" : false,
 	"MOC_SKIP" : 
 	[
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1ControllerTests_autogen/mocs_compilation.cpp",
 		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1DesktopQt_autogen/mocs_compilation.cpp",
 		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1SdkTests_autogen/mocs_compilation.cpp"
 	],
@@ -522,6 +524,7 @@
 	"UIC_SEARCH_PATHS" : [],
 	"UIC_SKIP" : 
 	[
+		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1ControllerTests_autogen/mocs_compilation.cpp",
 		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1DesktopQt_autogen/mocs_compilation.cpp",
 		"C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/RBY1SdkTests_autogen/mocs_compilation.cpp"
 	],

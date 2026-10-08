@@ -28,6 +28,7 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/ContinuousSubmit.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1DesktopQt.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1SdkTests.dir
+C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1ControllerTests.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1PlanningTests.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/test.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/edit_cache.dir
@@ -40,6 +41,8 @@ C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1DesktopQt_autogen.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1SdkTests_autogen_timestamp_deps.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1SdkTests_autogen.dir
+C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1ControllerTests_autogen_timestamp_deps.dir
+C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1ControllerTests_autogen.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1PlanningTests_autogen_timestamp_deps.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/CMakeFiles/RBY1PlanningTests_autogen.dir
 C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/build-sdk/rby1-sdk/CMakeFiles/proto-objects.dir

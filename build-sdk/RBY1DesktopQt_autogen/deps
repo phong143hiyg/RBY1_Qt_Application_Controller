@@ -679,12 +679,12 @@ RBY1DesktopQt_autogen/timestamp: \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/model/SystemStatus.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/NdjsonParser.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/NdjsonParser.hpp \
-	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.cpp \
-	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/network/RobotClient.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningClient.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningClient.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningInput.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/planning/PlanningInput.hpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/IRby1Client.cpp \
+	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/IRby1Client.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/SdkRobotClient.cpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/sdk/SdkRobotClient.hpp \
 	C:/Users/ADMIN/source/repos/RBY1DesktopQt_Moc4_StatePattern/src/state/ConnectedState.cpp \

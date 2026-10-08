@@ -36,31 +36,6 @@ std::unique_ptr<RobotState> ReadyState::startDrive(
     return std::make_unique<DrivingState>();
 }
 
-std::unique_ptr<RobotState> ReadyState::nudgeJoint(
-    RobotController &controller,
-    const QString &groupName,
-    int jointIndex,
-    double delta)
-{
-    controller.stopVelocityInternal();
-
-    const quint64 requestId =
-        controller.sendJointNudgeInternal(
-            groupName,
-            jointIndex,
-            delta);
-
-    if (requestId == 0)
-    {
-        controller.reportJointMotionFailure(QStringLiteral("Không gửi được lệnh thay đổi góc khớp tới Robot SDK."));
-        return nullptr;
-    }
-
-    return std::make_unique<JointBusyState>(
-        QStringLiteral("Joint nudge"),
-        requestId);
-}
-
 std::unique_ptr<RobotState> ReadyState::sendPose(
     RobotController &controller,
     const QString &command,

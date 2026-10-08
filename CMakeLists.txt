@@ -22,6 +22,17 @@ qt_standard_project_setup()
 # Build the SDK shipped with this repository instead of resolving a separately
 # installed rby1-sdk package. The source ZIP omits its Git submodule contents.
 set(RBY1_SDK_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/rby1-sdk-main")
+set(RBY1_SDK_EXPECTED_REVISION "9af8a734b7bef0167545e3d9f0d559276a5b64ee")
+set(RBY1_SDK_REVISION_FILE "${RBY1_SDK_SOURCE_DIR}/UPSTREAM_REVISION")
+if(NOT EXISTS "${RBY1_SDK_REVISION_FILE}")
+    message(FATAL_ERROR "Vendored rby1-sdk has no UPSTREAM_REVISION marker")
+endif()
+file(READ "${RBY1_SDK_REVISION_FILE}" RBY1_SDK_REVISION_TEXT)
+string(FIND "${RBY1_SDK_REVISION_TEXT}" "${RBY1_SDK_EXPECTED_REVISION}" RBY1_SDK_REVISION_OFFSET)
+if(RBY1_SDK_REVISION_OFFSET EQUAL -1)
+    message(FATAL_ERROR
+        "rby1-sdk revision mismatch: expected ${RBY1_SDK_EXPECTED_REVISION}")
+endif()
 if(NOT EXISTS "${RBY1_SDK_SOURCE_DIR}/third-party/DynamixelSDK/c++/src/dynamixel_sdk/packet_handler.cpp")
     message(FATAL_ERROR "Missing rby1-sdk submodule DynamixelSDK; see README.md")
 endif()
@@ -62,8 +73,8 @@ qt_add_executable(RBY1DesktopQt
     src/model/SystemStatus.hpp
     src/model/SystemStatus.cpp
 
-    src/network/RobotClient.hpp
-    src/network/RobotClient.cpp
+    src/sdk/IRby1Client.hpp
+    src/sdk/IRby1Client.cpp
     src/network/NdjsonParser.hpp
     src/network/NdjsonParser.cpp
 
@@ -114,11 +125,29 @@ if(BUILD_TESTING)
 
     qt_add_executable(RBY1SdkTests tests/TestSdkRobotClient.cpp
         src/sdk/SdkRobotClient.hpp src/sdk/SdkRobotClient.cpp
-        src/network/RobotClient.hpp src/network/RobotClient.cpp)
+        src/sdk/IRby1Client.hpp src/sdk/IRby1Client.cpp)
     target_include_directories(RBY1SdkTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(RBY1SdkTests PRIVATE Qt6::Core Qt6::Network Qt6::Test rby1-sdk::rby1-sdk)
     set_target_properties(RBY1SdkTests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME RBY1SdkTests COMMAND RBY1SdkTests -o -,txt -o sdk-results.xml,junitxml)
+
+    qt_add_executable(RBY1ControllerTests tests/TestRobotController.cpp
+        src/controller/RobotController.hpp src/controller/RobotController.cpp
+        src/model/SystemStatus.hpp src/model/SystemStatus.cpp
+        src/state/RobotState.hpp src/state/RobotState.cpp
+        src/state/DisconnectedState.hpp src/state/DisconnectedState.cpp
+        src/state/ConnectedState.hpp src/state/ConnectedState.cpp
+        src/state/PreparingState.hpp src/state/PreparingState.cpp
+        src/state/ReadyState.hpp src/state/ReadyState.cpp
+        src/state/DrivingState.hpp src/state/DrivingState.cpp
+        src/state/JointBusyState.hpp src/state/JointBusyState.cpp
+        src/sdk/IRby1Client.hpp src/sdk/IRby1Client.cpp
+        src/sdk/SdkRobotClient.hpp src/sdk/SdkRobotClient.cpp)
+    target_include_directories(RBY1ControllerTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(RBY1ControllerTests PRIVATE
+        Qt6::Core Qt6::Network Qt6::Test rby1-sdk::rby1-sdk)
+    set_target_properties(RBY1ControllerTests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME RBY1ControllerTests COMMAND RBY1ControllerTests -o -,txt)
 
     qt_add_executable(RBY1PlanningTests tests/TestPlanning.cpp ${PLANNING_SOURCES}
         src/network/NdjsonParser.hpp src/network/NdjsonParser.cpp)

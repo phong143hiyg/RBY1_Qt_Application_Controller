@@ -21,21 +21,22 @@ build-sdk\RBY1DesktopQt.exe
 
 ## Chạy simulator RBY1-M trên Windows
 
-Docker Desktop trên máy này dành riêng port `50051`, vì vậy dự án dùng proxy cục bộ
-`127.0.0.1:55051` để nối tới port `50051` của simulator. Chạy lệnh sau trước khi mở ứng dụng:
+Simulator phải publish endpoint gRPC SDK trực tiếp trên port `50051`; ứng dụng không
+dùng ROS 2, App Bridge hay TCP relay trung gian. Chạy lệnh sau trước khi mở ứng dụng:
 
 ```powershell
+$env:RBY1_SIM_COMPOSE_DIR = "/path/in/wsl/to/rby1-docker"
 powershell -ExecutionPolicy Bypass -File .\tools\start-rby1-sim.ps1
 ```
 
-Khi thấy `RBY1-M simulator is ready at 127.0.0.1:55051`, mở ứng dụng và giữ địa chỉ
-robot mặc định `127.0.0.1:55051`.
+Khi thấy `RBY1-M simulator SDK is ready at 127.0.0.1:50051`, mở ứng dụng và giữ địa chỉ
+robot mặc định `127.0.0.1:50051`.
 
 ## Nhập góc khớp
 
 - Các ô màu xanh hiển thị góc thực tế theo độ (°), đọc trực tiếp qua RBY1 SDK mỗi 500 ms.
 - Bấm vào ô để nhập góc đích tuyệt đối, rồi nhấn Enter để gửi lệnh; xử lý chuyển động giống kéo và nhả slider.
-- Ứng dụng không đặt `minimum_time`: SDK tự chọn quỹ đạo nhanh nhất trong giới hạn vận tốc và gia tốc của robot/simulator.
+- Ứng dụng không đặt `minimum_time`: SDK tự chọn thời lượng ngắn nhất theo giới hạn đọc từ dynamics model. Lệnh dùng 40% vận tốc và 20% gia tốc cực đại để không vượt ngưỡng tracking-error của Control Manager.
 - Trong lúc ô có focus, giá trị đang nhập không bị timer ghi đè. Bấm ra ngoài mà chưa Enter sẽ bỏ bản nháp và hiển thị lại góc robot báo gần nhất, sau đó tiếp tục cập nhật.
 - Enter không tự đặt góc hiển thị thành góc đích: chỉ snapshot từ robot cập nhật giá trị xác nhận.
 - Giá trị không hợp lệ, ngoài giới hạn thủ công, lệnh bị từ chối, timeout hoặc mất kết nối trong lúc chuyển động sẽ có popup thông báo. Không tự gửi lại lệnh thất bại.
@@ -58,12 +59,12 @@ RobotController (Context)
         |      +-- JointBusyState
         |
         v
-RobotClient (giao diện nội bộ)
+IRby1Client (giao diện nội bộ)
         |
         v
 SdkRobotClient -> Rainbow Robotics rby1-sdk -> gRPC -> RBY1/Simulator
 
-PlanningPanel -> PlanningClient -> TCP/NDJSON v1 -> ROS 2 planning service
+PlanningPanel -> PlanningClient -> TCP/NDJSON v1 -> external planning backend
 ```
 
 `MainWindow` không còn tự quyết định logic robot. Nó chỉ gửi yêu cầu cho
@@ -170,38 +171,41 @@ Không cho gửi lệnh joint mới chồng lên.
 
 Khi action trả về -> Ready.
 
-Với thanh trượt, nhập góc và nút ±1°, ứng dụng giữ góc đích tuyệt đối và
-đọc trạng thái khớp mới trước khi gửi lệnh. Sau mỗi kết quả lệnh khớp,
-ứng dụng đọc lại vị trí thực để xác nhận đích. Toàn bộ delta được gửi trong
-một motion liên tục, không chia thành các đoạn 0.20 rad gây dừng–chạy.
-`JointBusy` chỉ kết thúc khi vị trí đo được cách đích không quá 0.05°, hoặc
-khi lỗi/timeout xảy ra; số lần hiệu chỉnh theo feedback có giới hạn.
-Nút ±1° dùng cùng khoảng điều khiển đã chừa 1° ở hai biên như thanh trượt.
+Thanh trượt và ô nhập góc gửi trực tiếp một mục tiêu tuyệt đối trong một motion
+duy nhất. Ứng dụng không đặt thời gian tối thiểu; giới hạn vận tốc và gia tốc được
+đọc từ dynamics model của endpoint rồi nhân lần lượt với 40% và 20%. Mức này tránh
+MajorFault do tracking error trên simulator. Không có lệnh dịch chuyển tương đối hoặc vòng lặp
+cộng sai số. `JointBusy` kết thúc khi SDK hoàn thành, báo lỗi hoặc hết thời gian chờ.
+Khoảng điều khiển thủ công vẫn chừa 1° ở hai biên cơ khí. Riêng torso φ6 dùng
+biên MuJoCo ±90° (UI ±89°), thay vì ±135° ghi trong URDF nhưng simulator không đạt được.
 
 ## Điều khiển robot qua SDK
 
 Ứng dụng dùng C++ SDK chính thức của Rainbow Robotics, hỗ trợ model A và M. `SdkRobotClient`
 chuyển API của SDK thành kết quả nội bộ cho `RobotController`; không gửi JSON
 command tới App Bridge. Bản simulator trên máy này dùng địa chỉ mặc định
-`127.0.0.1:55051`, có thể đặt lại bằng biến môi trường `RBY1_ROBOT_ADDRESS`.
+`127.0.0.1:50051`, có thể đặt lại bằng biến môi trường `RBY1_ROBOT_ADDRESS`.
 SDK nằm trong `rby1-sdk-main`.
-Bản ứng dụng này được cấu hình cố định cho `RBY1-M` và tạo trực tiếp SDK model M.
+Chọn `RBY1-M` hoặc `RBY1-A` trên giao diện trước khi kết nối; biến môi trường
+`RBY1_ROBOT_MODEL=a|m` đặt lựa chọn mặc định. Adapter kiểm tra số bậc tự do và
+các nhóm khớp do endpoint báo về, nên model cấu hình sai sẽ bị từ chối.
+Giới hạn vận tốc base mặc định là `0.30 m/s` và `0.60 rad/s`; có thể hạ bằng
+`RBY1_MAX_LINEAR_VELOCITY` và `RBY1_MAX_ANGULAR_VELOCITY`.
 
 `set_ready_pose` lưu vị trí khớp đo được trong phiên SDK hiện tại;
 `clear_ready_pose` xóa bản lưu và `ready_pose` dùng bản lưu này.
 `arms_ready` không cần pose đã lưu; nó co hai tay về preset Ready chuẩn của RBY1-M.
-Chế độ điều khiển thủ công qua SDK và ROS 2 thực thi quỹ đạo không được cùng
-sở hữu quyền điều khiển một robot. Planning v1 hiện chỉ plan/preview trên fake
-hardware, `execution_enabled=false`.
+Planning v1 chỉ plan/preview, `execution_enabled=false`, và không sở hữu quyền
+điều khiển robot.
 
-## Test quỹ đạo MoveIt 2 (planning/preview)
+## Test planning/preview độc lập
 
 Tab **Test quỹ đạo** dùng `PlanningClient`/QTcpSocket riêng, default port **8082**,
 không phụ thuộc Power/Servo/Control Manager của tab robot và không gửi command tới robot.
 Đường robot command TCP/App Bridge 8081 đã được gỡ khỏi bản build chính. Tab
 planning vẫn dùng socket NDJSON riêng; mốc này không có Execute.
 Protocol mới: [planning NDJSON v1](planning_protocol/protocol-v1.md),
-[fixture JSON dùng chung Qt/mock/ROS](planning_protocol/fixtures/contract-v1.json).
+[fixture JSON dùng chung Qt/mock/backend](planning_protocol/fixtures/contract-v1.json).
 
 Chạy mock độc lập bằng Python standard library (không cần ROS 2):
 
@@ -216,13 +220,13 @@ place là object pose; backend suy ra place TCP theo transform grasp/TCP offset.
 Hướng approach/lift/lower/retreat và defaults lấy từ scene snapshot. Tọa độ mock
 minh họa chưa chứng minh reachable/an toàn. Nhập mục tiêu và tham số rồi **Plan pose**
 (dùng pick TCP làm goal) hoặc **Plan gắp–thả**. Xem stage/progress, lỗi và JSON metadata
-plan_id/revision/duration_s/waypoint_count/validation. **Xem trước RViz** gửi preview
-theo plan_id; mock chỉ trả metadata, không mở RViz. **Hủy planning** chờ terminal
+plan_id/revision/duration_s/waypoint_count/validation. **Xem trước kế hoạch** gửi preview
+theo plan_id; mock chỉ trả metadata. **Hủy planning** chờ terminal
 task gốc; ACK cancel, timeout hoặc disconnect không xác nhận hủy. Kết nối lại hoặc
 **Đối chiếu status** để kiểm tra task trước thao tác mới; không tự resubmit planning.
 Scene/model đổi hoặc TTL hết làm plan mất hiệu lực.
 
-MOCK chỉ test protocol/UI, không tính IK/collision/trajectory MoveIt. Validation
+MOCK chỉ test protocol/UI, không tính IK/collision/trajectory thật. Validation
 mock luôn `simulated=true`, joint_limits/collision/timing=`not_checked`. Các chế độ:
 
 ```powershell
@@ -240,17 +244,9 @@ Mode disconnect giữ worker/status trong cùng process để Qt reconnect. Dela
 planning_timeout_s trả terminal TIMEOUT. Chạy delay để thử Hủy; server xác nhận khi
 worker dừng. Các scenario âm chỉ mô phỏng lỗi, không là bằng chứng collision/NO_IK.
 
-Kết nối ROS 2: dùng service planning **mới** trên Ubuntu/WSL triển khai đúng protocol
-v1 và fixture chung, fake hardware, `execution_enabled=false`, `backend_mode=fake_hardware`.
-Không dùng socket robot command 8081 hoặc giả định planning service có quyền điều khiển robot. Service ROS
-mặc định bind localhost; để truy cập từ Windows khác máy/VM, cấu hình bind IP mạng
-của service và port 8082, cho phép TCP đó trong firewall, nhập IP Ubuntu ở tab.
-Với localhost forwarding WSL có thể dùng 127.0.0.1; nếu không forward được, dùng IP
-WSL có thể truy cập. ROS sở hữu model/version/hash URDF/SRDF/config, frame, TCP,
-scene/start state, IK/collision, MTC, TTL plan/status và RViz. Chỉ bật tính năng có
-capability; model một tay phải xác minh trước. Repository này không cung cấp hoặc
-tuyên bố đã chạy launch/planning ROS 2. Quy trình ROS ở
-[đặc tả chung](question/prompts-test-moveit2-rby1.md); không có launch command chưa xác minh.
+Backend planning tùy chọn phải triển khai protocol v1, giữ
+`execution_enabled=false` và không có quyền gửi lệnh tới robot. Repository này
+không cung cấp backend production; mock chỉ dùng để kiểm tra protocol/UI.
 
 Sau configure/build Qt dưới đây, chạy toàn bộ test:
 
@@ -260,7 +256,9 @@ ctest --test-dir build-sdk --output-on-failure
 python tests/test_mock_planning.py
 ```
 
-`RBY1SdkTests` kiểm tra adapter SDK không cần robot; `RBY1PlanningTests` kiểm tra correlation,
+`RBY1SdkTests` kiểm tra adapter SDK không cần robot; `RBY1ControllerTests` dùng fake
+`IRby1Client` để kiểm tra Unknown/Off/On, stale state, reconnect, giới hạn vận tốc,
+dead-man stop, validation joint và khóa command đồng thời. `RBY1PlanningTests` kiểm tra correlation,
 sequence, terminal-before-ACK, timeout/late response, cancel race, reconnect,
 scene/model/validation, NDJSON 1 MiB và input/UI. Test tích hợp Qt tự khởi động mock
 Python ở port động cho các mode. `PlanningMockTests` kiểm tra TCP mock/fixture,
@@ -269,15 +267,16 @@ trong PATH; CMake đăng ký Python suite khi tìm thấy interpreter.
 
 Để kiểm tra kết nối và đọc khớp từ robot/simulator mà không gửi lệnh chuyển động,
 đặt `RBY1_TEST_ROBOT_ADDRESS=IP:port` rồi chạy `ctest --test-dir build-sdk -R RBY1SdkTests --output-on-failure`.
-
-Kết quả triển khai, file thay đổi và các kiểm tra ROS 2 còn thiếu:
-[báo cáo kiểm chứng Qt/mock](planning_protocol/verification.md).
+Test có motion bị khóa mặc định; chỉ đặt `RBY1_TEST_ENABLE_MOTION=1` khi endpoint là
+simulator cô lập.
 
 ## Build Qt với SDK trong dự án
 
 Dự án build trực tiếp mã nguồn `rby1-sdk` phiên bản `0.10.0` trong
 `rby1-sdk-main`. Mã nguồn này được giải nén từ ZIP do người dùng cung cấp,
-khớp commit upstream `ac7e83056e0775c4680a50d8c7cb3d9c3c66164d`. ZIP GitHub
+được pin tại tag `v0.10.0`, commit upstream
+`9af8a734b7bef0167545e3d9f0d559276a5b64ee`. File
+`rby1-sdk-main/UPSTREAM_REVISION` được CMake kiểm tra khi configure. ZIP GitHub
 không chứa mã của các Git submodule; thư mục SDK trong dự án đã bổ sung đúng commit:
 
 - `DynamixelSDK`: `886225ccaa9087c607a165b78c485a11ee0300f2`

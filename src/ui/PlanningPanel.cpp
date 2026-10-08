@@ -69,7 +69,7 @@ PlanningPanel::PlanningPanel(QWidget *parent) : QWidget(parent), client_(new Pla
     }
     layout->addLayout(params);
     auto *actions = new QHBoxLayout; pose_ = new QPushButton("Plan pose"); task_ = new QPushButton("Plan gắp–thả");
-    preview_ = new QPushButton("Xem trước RViz"); cancel_ = new QPushButton("Hủy planning");
+    preview_ = new QPushButton("Xem trước kế hoạch"); cancel_ = new QPushButton("Hủy planning");
     for (auto *b : {pose_, task_, preview_, cancel_}) actions->addWidget(b);
     // Keep actions and progress visible while the scene/form/result area scrolls.
     outer->addLayout(actions);
@@ -109,11 +109,11 @@ void PlanningPanel::updateView() {
     if (!caps.isEmpty()) {
         const bool mock = caps.value("backend_mode") == "mock";
         capability_->setText(QString("%1 | Model/version: %2 / %3 | robot_model_id: %4\nFrame: %5 | TCP/link: %6\nCommands: %7 | TTL plan/status: %8 / %9 s | execution_enabled=false%10")
-            .arg(mock ? "MOCK — chỉ mô phỏng protocol; chưa tính IK/collision/trajectory thật" : "FAKE HARDWARE — ROS 2 planning, cần xác minh model/scene",
+            .arg(mock ? "MOCK — chỉ mô phỏng protocol; chưa tính IK/collision/trajectory thật" : "EXTERNAL BACKEND — cần xác minh model/scene",
                 caps.value("model").toString(), caps.value("model_version").toString(), caps.value("robot_model_id").toString(),
                 caps.value("planning_frame").toString(), json(caps.value("tcp_mappings")), json(caps.value("supported_commands")))
             .arg(caps.value("plan_ttl_s").toDouble()).arg(caps.value("task_status_ttl_s").toDouble())
-            .arg(mock ? "\nMOCK preview không mở RViz." : ""));
+            .arg(mock ? "\nMOCK chỉ trả metadata preview." : ""));
         capability_->setStyleSheet(mock ? "color:#b55b00;font-weight:bold" : "");
         QStringList scenarios; for (const auto &s : caps.value("scenarios").toArray()) scenarios.append(s.toString());
         QStringList existing; for (int i = 0; i < scenario_->count(); ++i) existing.append(scenario_->itemText(i));

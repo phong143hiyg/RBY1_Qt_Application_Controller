@@ -3,12 +3,15 @@ cmake_minimum_required(VERSION 3.16)
 
 if("${CONFIG}" STREQUAL "" OR "${CONFIG}" STREQUAL "Release")
   file(REMOVE_RECURSE
+  "CMakeFiles\\RBY1ControllerTests_autogen.dir\\AutogenUsed.txt"
+  "CMakeFiles\\RBY1ControllerTests_autogen.dir\\ParseCache.txt"
   "CMakeFiles\\RBY1DesktopQt_autogen.dir\\AutogenUsed.txt"
   "CMakeFiles\\RBY1DesktopQt_autogen.dir\\ParseCache.txt"
   "CMakeFiles\\RBY1PlanningTests_autogen.dir\\AutogenUsed.txt"
   "CMakeFiles\\RBY1PlanningTests_autogen.dir\\ParseCache.txt"
   "CMakeFiles\\RBY1SdkTests_autogen.dir\\AutogenUsed.txt"
   "CMakeFiles\\RBY1SdkTests_autogen.dir\\ParseCache.txt"
+  "RBY1ControllerTests_autogen"
   "RBY1DesktopQt_autogen"
   "RBY1PlanningTests_autogen"
   "RBY1SdkTests_autogen"
